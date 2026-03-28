@@ -26,15 +26,17 @@ export function TrendsChart({ data }: TrendsChartProps) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 11 }}
-          className="fill-muted-foreground"
+          tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+          axisLine={{ stroke: "var(--border)" }}
+          tickLine={false}
         />
         <YAxis
-          tick={{ fontSize: 10 }}
-          className="fill-muted-foreground"
+          tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+          axisLine={false}
+          tickLine={false}
           tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
           width={48}
         />
@@ -43,8 +45,8 @@ export function TrendsChart({ data }: TrendsChartProps) {
           contentStyle={{ fontSize: 12 }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar dataKey="ingresos" name="Ingresos" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
-        <Bar dataKey="gastos" name="Gastos" fill="hsl(var(--muted-foreground))" radius={[3, 3, 0, 0]} opacity={0.6} />
+        <Bar dataKey="ingresos" name="Ingresos" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="gastos" name="Gastos" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
