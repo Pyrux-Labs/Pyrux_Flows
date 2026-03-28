@@ -51,6 +51,8 @@ export type ExpenseCategory =
   | "impuestos"
   | "otro";
 
+export type ExpenseFrequency = "semanal" | "mensual" | "anual";
+
 export type ServiceUnit = "proyecto" | "hora" | "mes";
 
 export type ServiceCategory =
@@ -112,6 +114,8 @@ export interface Expense {
   date: string;
   category: ExpenseCategory | null;
   recurrent: boolean;
+  frequency: ExpenseFrequency | null;
+  generated_from_id: string | null;
   notes: string | null;
 }
 

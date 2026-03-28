@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import type { ExpenseCategory, Currency } from "@/lib/types/database.types";
+import { expensePayloadSchema } from "@/lib/validations/expense";
+import type { ExpenseCategory, ExpenseFrequency, Currency } from "@/lib/types/database.types";
 
 export interface ExpensePayload {
   description: string;
@@ -11,19 +12,22 @@ export interface ExpensePayload {
   date: string;
   category?: ExpenseCategory | null;
   recurrent: boolean;
+  frequency?: ExpenseFrequency | null;
   notes?: string | null;
 }
 
 export async function createExpense(payload: ExpensePayload) {
+  const validated = expensePayloadSchema.parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("expenses").insert(payload);
+  const { error } = await supabase.from("expenses").insert(validated);
   if (error) throw new Error(error.message);
   revalidatePath("/gastos");
 }
 
 export async function updateExpense(id: string, payload: Partial<ExpensePayload>) {
+  const validated = expensePayloadSchema.partial().parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("expenses").update(payload).eq("id", id);
+  const { error } = await supabase.from("expenses").update(validated).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/gastos");
 }

@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, Receipt, RefreshCw } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { EXPENSE_CATEGORY_LABELS, EXPENSE_FREQUENCY_LABELS } from "@/lib/constants/labels";
 import type { Expense } from "@/lib/types/database.types";
 
 interface ExpenseTableProps {
@@ -21,15 +22,6 @@ interface ExpenseTableProps {
   isLoading: boolean;
   onEdit: (expense: Expense) => void;
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  herramientas: "Herramientas",
-  hosting: "Hosting",
-  marketing: "Marketing",
-  servicios: "Servicios",
-  impuestos: "Impuestos",
-  otro: "Otro",
-};
 
 export function ExpenseTable({ expenses, isLoading, onEdit }: ExpenseTableProps) {
   if (isLoading) {
@@ -61,7 +53,7 @@ export function ExpenseTable({ expenses, isLoading, onEdit }: ExpenseTableProps)
             <TableHead className="text-right">Monto</TableHead>
             <TableHead>Fecha</TableHead>
             <TableHead>Categoría</TableHead>
-            <TableHead className="text-center">Recurrente</TableHead>
+            <TableHead>Recurrente</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -78,15 +70,24 @@ export function ExpenseTable({ expenses, isLoading, onEdit }: ExpenseTableProps)
               <TableCell>
                 {expense.category ? (
                   <Badge variant="secondary" className="text-xs">
-                    {CATEGORY_LABELS[expense.category] ?? expense.category}
+                    {EXPENSE_CATEGORY_LABELS[expense.category] ?? expense.category}
                   </Badge>
                 ) : (
                   <span className="text-muted-foreground text-xs">—</span>
                 )}
               </TableCell>
-              <TableCell className="text-center">
-                {expense.recurrent ? (
-                  <RefreshCw className="h-3.5 w-3.5 text-primary mx-auto" />
+              <TableCell>
+                {expense.recurrent && expense.frequency ? (
+                  <div className="flex items-center gap-1.5">
+                    <RefreshCw className="h-3 w-3 text-primary shrink-0" />
+                    <span className="text-xs text-primary">
+                      {EXPENSE_FREQUENCY_LABELS[expense.frequency]}
+                    </span>
+                  </div>
+                ) : expense.generated_from_id ? (
+                  <span className="text-xs text-muted-foreground">Auto</span>
+                ) : expense.recurrent ? (
+                  <RefreshCw className="h-3.5 w-3.5 text-primary" />
                 ) : (
                   <span className="text-muted-foreground text-xs">—</span>
                 )}

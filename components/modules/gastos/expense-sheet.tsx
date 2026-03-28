@@ -12,6 +12,17 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -31,7 +42,8 @@ import {
   useDeleteExpense,
 } from "@/hooks/use-expenses";
 import { todayISO } from "@/lib/utils";
-import type { Expense } from "@/lib/types/database.types";
+import { EXPENSE_CATEGORY_LABELS, EXPENSE_FREQUENCY_LABELS } from "@/lib/constants/labels";
+import type { Expense, ExpenseFrequency } from "@/lib/types/database.types";
 
 const schema = z.object({
   description: z.string().min(1, "La descripción es requerida"),
@@ -56,6 +68,7 @@ const schema = z.object({
     .optional()
     .nullable(),
   recurrent: z.boolean(),
+  frequency: z.enum(["semanal", "mensual", "anual"]).nullable().optional(),
   notes: z.string().optional().nullable(),
 });
 
@@ -67,14 +80,6 @@ interface ExpenseSheetProps {
   expense?: Expense | null;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  herramientas: "Herramientas",
-  hosting: "Hosting",
-  marketing: "Marketing",
-  servicios: "Servicios",
-  impuestos: "Impuestos",
-  otro: "Otro",
-};
 
 export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps) {
   const isEditing = !!expense;
@@ -88,7 +93,7 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
     setValue,
     watch,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -98,6 +103,7 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
       date: todayISO(),
       category: null,
       recurrent: false,
+      frequency: null,
       notes: "",
     },
   });
@@ -113,6 +119,7 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
               date: expense.date,
               category: expense.category ?? null,
               recurrent: expense.recurrent,
+              frequency: expense.frequency ?? null,
               notes: expense.notes ?? "",
             }
           : {
@@ -122,6 +129,7 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
               date: todayISO(),
               category: null,
               recurrent: false,
+              frequency: null,
               notes: "",
             },
       );
@@ -129,8 +137,11 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
   }, [open, expense, reset]);
 
   const isPending = createExpense.isPending || updateExpense.isPending;
+  const { handleOpenChange, warningOpen, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges(isDirty, onOpenChange);
   const currency = watch("currency");
   const recurrent = watch("recurrent");
+  const frequency = watch("frequency");
 
   async function onSubmit(values: FormValues) {
     const payload = {
@@ -140,6 +151,7 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
       date: values.date,
       category: values.category ?? null,
       recurrent: values.recurrent,
+      frequency: values.recurrent ? (values.frequency ?? null) : null,
       notes: values.notes || null,
     };
 
@@ -170,7 +182,8 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0">
         <SheetHeader className="pb-4 border-b border-border">
           <SheetTitle>{isEditing ? "Editar gasto" : "Nuevo gasto"}</SheetTitle>
@@ -254,7 +267,7 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Sin categoría</SelectItem>
-                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  {Object.entries(EXPENSE_CATEGORY_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -268,9 +281,36 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
               <Switch
                 id="recurrent"
                 checked={recurrent}
-                onCheckedChange={(v) => setValue("recurrent", v)}
+                onCheckedChange={(v) => {
+                  setValue("recurrent", v);
+                  if (!v) setValue("frequency", null);
+                }}
               />
             </div>
+
+            {recurrent && (
+              <div className="space-y-2">
+                <Label>Frecuencia</Label>
+                <Select
+                  value={frequency ?? "_none"}
+                  onValueChange={(v) =>
+                    setValue("frequency", v === "_none" ? null : (v as ExpenseFrequency))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccioná frecuencia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Sin frecuencia</SelectItem>
+                    {Object.entries(EXPENSE_FREQUENCY_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
@@ -312,7 +352,7 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancelar
               </Button>
@@ -330,5 +370,21 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
         </form>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={warningOpen} onOpenChange={cancelDiscard}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tenés cambios sin guardar. Si cerrás ahora se perderán.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={cancelDiscard}>Seguir editando</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDiscard}>Descartar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
