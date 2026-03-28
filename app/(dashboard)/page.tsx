@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { startOfMonth, endOfMonth, startOfWeek, format } from "date-fns";
+import { startOfMonth, endOfMonth, startOfWeek, subMonths, format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { TrendingUp, Receipt, Users, FolderKanban } from "lucide-react";
+import { TrendingUp, Receipt, Users, FolderKanban, Clock } from "lucide-react";
 import Link from "next/link";
 import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
+import { TrendsChart } from "@/components/modules/dashboard/trends-chart";
 
 async function getDashboardData() {
   const supabase = await createClient();
@@ -12,7 +13,19 @@ async function getDashboardData() {
   const monthTo = format(endOfMonth(now), "yyyy-MM-dd");
   const weekFrom = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
 
-  const [incomeRes, expensesRes, prospectsThisWeekRes, activeProjectsRes, recentProspectsRes, recentIncomeRes, settingsRes] =
+  // Build date range for last 6 months trend
+  const trendMonths = Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(now, 5 - i);
+    return {
+      label: format(d, "MMM", { locale: undefined }),
+      from: format(startOfMonth(d), "yyyy-MM-dd"),
+      to: format(endOfMonth(d), "yyyy-MM-dd"),
+    };
+  });
+  const trendFrom = trendMonths[0].from;
+  const trendTo = trendMonths[5].to;
+
+  const [incomeRes, expensesRes, prospectsThisWeekRes, activeProjectsRes, recentProspectsRes, recentIncomeRes, settingsRes, pendingRes, trendIncomeRes, trendExpensesRes] =
     await Promise.all([
       supabase
         .from("income")
@@ -43,6 +56,24 @@ async function getDashboardData() {
         .order("date", { ascending: false })
         .limit(5),
       supabase.from("settings").select("key, value"),
+      // Pending collections: invoice sent but not yet paid
+      supabase
+        .from("income")
+        .select("amount, currency")
+        .eq("invoice_sent", true)
+        .eq("paid", false),
+      // Trend: income for last 6 months
+      supabase
+        .from("income")
+        .select("amount, currency, date")
+        .gte("date", trendFrom)
+        .lte("date", trendTo),
+      // Trend: expenses for last 6 months
+      supabase
+        .from("expenses")
+        .select("amount, currency, date")
+        .gte("date", trendFrom)
+        .lte("date", trendTo),
     ]);
 
   const income = incomeRes.data ?? [];
@@ -60,6 +91,28 @@ async function getDashboardData() {
   const totalIncome = incomeARS + incomeUSD * usdRate;
   const totalExpenses = expensesARS + expensesUSD * usdRate;
 
+  // Pending collections
+  const pending = pendingRes.data ?? [];
+  const pendingARS = pending.filter((i) => i.currency === "ARS").reduce((s, i) => s + i.amount, 0);
+  const pendingUSD = pending.filter((i) => i.currency === "USD").reduce((s, i) => s + i.amount, 0);
+
+  // Monthly trends (convert all to ARS equivalent)
+  const trendIncome = trendIncomeRes.data ?? [];
+  const trendExpenses = trendExpensesRes.data ?? [];
+  const trendsData = trendMonths.map(({ label, from, to }) => {
+    const monthIncome = trendIncome.filter((i) => i.date >= from && i.date <= to);
+    const monthExpenses = trendExpenses.filter((e) => e.date >= from && e.date <= to);
+    const ingresos = monthIncome.reduce(
+      (s, i) => s + (i.currency === "USD" ? i.amount * usdRate : i.amount),
+      0,
+    );
+    const gastos = monthExpenses.reduce(
+      (s, e) => s + (e.currency === "USD" ? e.amount * usdRate : e.amount),
+      0,
+    );
+    return { month: label.charAt(0).toUpperCase() + label.slice(1), ingresos, gastos };
+  });
+
   return {
     incomeARS,
     incomeUSD,
@@ -67,6 +120,9 @@ async function getDashboardData() {
     expensesUSD,
     totalIncome,
     totalExpenses,
+    pendingARS,
+    pendingUSD,
+    trendsData,
     prospectsThisWeek: prospectsThisWeekRes.count ?? 0,
     activeProjects: activeProjectsRes.count ?? 0,
     recentProspects: recentProspectsRes.data ?? [],
@@ -128,6 +184,39 @@ export default async function DashboardPage() {
           subtext="en curso"
           href="/proyectos"
         />
+      </div>
+
+      {/* Pending collections */}
+      {(data.pendingARS > 0 || data.pendingUSD > 0) && (
+        <Link
+          href="/finanzas"
+          className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors"
+        >
+          <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="text-sm text-muted-foreground">Pendiente de cobro:</span>
+          <div className="flex gap-3 ml-1">
+            {data.pendingARS > 0 && (
+              <span className="text-sm font-semibold text-foreground">
+                {formatCurrency(data.pendingARS, "ARS")}
+              </span>
+            )}
+            {data.pendingUSD > 0 && (
+              <span className="text-sm font-semibold text-foreground">
+                {formatCurrency(data.pendingUSD, "USD")}
+              </span>
+            )}
+          </div>
+        </Link>
+      )}
+
+      {/* Monthly trends chart */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-medium text-foreground">
+          Evolución últimos 6 meses
+        </h2>
+        <div className="bg-card border border-border rounded-lg p-4">
+          <TrendsChart data={data.trendsData} />
+        </div>
       </div>
 
       {/* Recent activity */}
