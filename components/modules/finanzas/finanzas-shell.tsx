@@ -11,6 +11,7 @@ import { IncomeSummary } from "./income-summary";
 import { IncomeSheet } from "./income-sheet";
 import { useIncome } from "@/hooks/use-income";
 import { useProjects } from "@/hooks/use-projects";
+import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/lib/utils";
 import type { Income } from "@/lib/types/database.types";
 
@@ -21,6 +22,7 @@ export function FinanzasShell() {
 
   const { data: income = [], isLoading } = useIncome(month);
   const { data: projects = [] } = useProjects();
+  const { visibleItems: visibleIncome, hasMore, remaining, loadMore } = usePagination(income);
 
   const totalARS = income
     .filter((e) => e.currency === "ARS")
@@ -90,13 +92,20 @@ export function FinanzasShell() {
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tabla">
+        <TabsContent value="tabla" className="space-y-3">
           <IncomeTable
-            income={income}
+            income={visibleIncome}
             projects={projects}
             isLoading={isLoading}
             onEdit={handleEdit}
           />
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" size="sm" onClick={loadMore}>
+                Cargar más ({remaining} restantes)
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="resumen">

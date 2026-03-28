@@ -9,6 +9,7 @@ import { ProspectKanban } from "./prospect-kanban";
 import { ProspectPipeline } from "./prospect-pipeline";
 import { ProspectSheet } from "./prospect-sheet";
 import { useProspects } from "@/hooks/use-prospects";
+import { usePagination } from "@/hooks/use-pagination";
 import type { Prospect } from "@/lib/types/database.types";
 
 export function ProspectosShell() {
@@ -16,6 +17,7 @@ export function ProspectosShell() {
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
 
   const { data: prospects = [], isLoading } = useProspects();
+  const { visibleItems: visibleProspects, hasMore, remaining, loadMore } = usePagination(prospects);
 
   function handleEdit(prospect: Prospect) {
     setEditingProspect(prospect);
@@ -54,12 +56,19 @@ export function ProspectosShell() {
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tabla">
+        <TabsContent value="tabla" className="space-y-3">
           <ProspectTable
-            prospects={prospects}
+            prospects={visibleProspects}
             isLoading={isLoading}
             onEdit={handleEdit}
           />
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" size="sm" onClick={loadMore}>
+                Cargar más ({remaining} restantes)
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="kanban">

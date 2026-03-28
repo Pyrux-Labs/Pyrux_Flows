@@ -10,6 +10,7 @@ import { ExpenseTable } from "./expense-table";
 import { ExpenseSummary } from "./expense-summary";
 import { ExpenseSheet } from "./expense-sheet";
 import { useExpenses } from "@/hooks/use-expenses";
+import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/lib/utils";
 import type { Expense } from "@/lib/types/database.types";
 
@@ -19,6 +20,7 @@ export function GastosShell() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const { data: expenses = [], isLoading } = useExpenses(month);
+  const { visibleItems: visibleExpenses, hasMore, remaining, loadMore } = usePagination(expenses);
 
   const totalARS = expenses
     .filter((e) => e.currency === "ARS")
@@ -88,12 +90,19 @@ export function GastosShell() {
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tabla">
+        <TabsContent value="tabla" className="space-y-3">
           <ExpenseTable
-            expenses={expenses}
+            expenses={visibleExpenses}
             isLoading={isLoading}
             onEdit={handleEdit}
           />
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" size="sm" onClick={loadMore}>
+                Cargar más ({remaining} restantes)
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="resumen">

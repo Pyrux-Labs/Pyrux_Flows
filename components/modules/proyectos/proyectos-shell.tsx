@@ -8,6 +8,7 @@ import { ProjectTable } from "./project-table";
 import { ProjectKanban } from "./project-kanban";
 import { ProjectSheet } from "./project-sheet";
 import { useProjects } from "@/hooks/use-projects";
+import { usePagination } from "@/hooks/use-pagination";
 import type { Project } from "@/lib/types/database.types";
 
 export function ProyectosShell() {
@@ -15,6 +16,7 @@ export function ProyectosShell() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading } = useProjects();
+  const { visibleItems: visibleProjects, hasMore, remaining, loadMore } = usePagination(projects);
 
   function handleEdit(project: Project) {
     setEditingProject(project);
@@ -52,12 +54,19 @@ export function ProyectosShell() {
           <TabsTrigger value="kanban">Kanban</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tabla">
+        <TabsContent value="tabla" className="space-y-3">
           <ProjectTable
-            projects={projects}
+            projects={visibleProjects}
             isLoading={isLoading}
             onEdit={handleEdit}
           />
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" size="sm" onClick={loadMore}>
+                Cargar más ({remaining} restantes)
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="kanban">

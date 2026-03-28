@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useServices } from "@/hooks/use-services";
+import { usePagination } from "@/hooks/use-pagination";
 import { ServiceCard } from "./service-card";
 import { ServiceSheet } from "./service-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +12,8 @@ import { Tag, Plus } from "lucide-react";
 import type { Service } from "@/lib/types/database.types";
 
 export function ServiceGrid() {
-  const { data: services, isLoading } = useServices();
+  const { data: services = [], isLoading } = useServices();
+  const { visibleItems: visibleServices, hasMore, remaining, loadMore } = usePagination(services);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
@@ -64,10 +66,19 @@ export function ServiceGrid() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {services.map((service) => (
-            <ServiceCard key={service.id} service={service} onEdit={handleEdit} />
-          ))}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {visibleServices.map((service) => (
+              <ServiceCard key={service.id} service={service} onEdit={handleEdit} />
+            ))}
+          </div>
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="outline" size="sm" onClick={loadMore}>
+                Cargar más ({remaining} restantes)
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
