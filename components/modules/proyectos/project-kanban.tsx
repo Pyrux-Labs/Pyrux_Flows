@@ -1,0 +1,134 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Pencil, FolderKanban } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import type { Project, ProjectStatus } from "@/lib/types/database.types";
+
+interface ProjectKanbanProps {
+  projects: Project[];
+  isLoading: boolean;
+  onEdit: (project: Project) => void;
+}
+
+const COLUMNS: { status: ProjectStatus; label: string }[] = [
+  { status: "activo", label: "Activo" },
+  { status: "pausado", label: "Pausado" },
+  { status: "completado", label: "Completado" },
+  { status: "cancelado", label: "Cancelado" },
+];
+
+const ASSIGNED_LABELS: Record<string, string> = {
+  juanma: "Juanma",
+  gino: "Gino",
+  ambos: "Ambos",
+};
+
+function ProjectCard({
+  project,
+  onEdit,
+}: {
+  project: Project;
+  onEdit: (p: Project) => void;
+}) {
+  return (
+    <div className="bg-card border border-border rounded-md p-3 space-y-2 group">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-foreground leading-snug">
+          {project.name}
+        </p>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          onClick={() => onEdit(project)}
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{project.client_name}</p>
+      <div className="flex items-center justify-between pt-0.5">
+        {project.budget != null ? (
+          <span className="text-xs font-mono text-foreground">
+            {formatCurrency(project.budget, "USD")}
+          </span>
+        ) : (
+          <span />
+        )}
+        {project.assigned_to && (
+          <Badge variant="outline" className="text-xs">
+            {ASSIGNED_LABELS[project.assigned_to] ?? project.assigned_to}
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function ProjectKanban({ projects, isLoading, onEdit }: ProjectKanbanProps) {
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-4 gap-4">
+        {COLUMNS.map((col) => (
+          <div key={col.status} className="space-y-2">
+            <Skeleton className="h-6 w-24 rounded" />
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-md" />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (!projects.length) {
+    return (
+      <EmptyState
+        icon={FolderKanban}
+        title="Sin proyectos todavía"
+        description="Creá tu primer proyecto para empezar."
+      />
+    );
+  }
+
+  const grouped = COLUMNS.reduce(
+    (acc, col) => {
+      acc[col.status] = projects
+        .filter((p) => p.status === col.status)
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+      return acc;
+    },
+    {} as Record<ProjectStatus, Project[]>,
+  );
+
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {COLUMNS.map((col) => {
+        const colProjects = grouped[col.status] ?? [];
+        return (
+          <div key={col.status} className="space-y-2">
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {col.label}
+              </span>
+              <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                {colProjects.length}
+              </Badge>
+            </div>
+            <div className="space-y-2 min-h-[80px]">
+              {colProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} onEdit={onEdit} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
