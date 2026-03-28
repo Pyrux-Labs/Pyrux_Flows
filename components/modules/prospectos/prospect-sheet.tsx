@@ -12,6 +12,17 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,6 +40,11 @@ import {
   useUpdateProspect,
   useDeleteProspect,
 } from "@/hooks/use-prospects";
+import {
+  SECTOR_LABELS,
+  SOURCE_LABELS,
+  PROSPECT_STATUS_LABELS,
+} from "@/lib/constants/labels";
 import type { Prospect } from "@/lib/types/database.types";
 
 const schema = z.object({
@@ -80,33 +96,6 @@ interface ProspectSheetProps {
   prospect?: Prospect | null;
 }
 
-const SECTOR_LABELS: Record<string, string> = {
-  contabilidad: "Contabilidad",
-  legal: "Legal",
-  medico: "Médico",
-  estetica: "Estética",
-  gastronomia: "Gastronomía",
-  fitness: "Fitness",
-  dental: "Dental",
-  otro: "Otro",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  word_of_mouth: "Boca a boca",
-  instagram: "Instagram",
-  linkedin: "LinkedIn",
-  cold_email: "Cold email",
-  whatsapp: "WhatsApp",
-  otro: "Otro",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  nuevo: "Nuevo",
-  contactado: "Contactado",
-  en_negociacion: "En negociación",
-  cerrado: "Cerrado",
-  perdido: "Perdido",
-};
 
 export function ProspectSheet({
   open,
@@ -124,7 +113,7 @@ export function ProspectSheet({
     setValue,
     watch,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -174,6 +163,8 @@ export function ProspectSheet({
   }, [open, prospect, reset]);
 
   const isPending = createProspect.isPending || updateProspect.isPending;
+  const { handleOpenChange, warningOpen, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges(isDirty, onOpenChange);
 
   async function onSubmit(values: FormValues) {
     const payload = {
@@ -216,7 +207,8 @@ export function ProspectSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0">
         <SheetHeader className="pb-4 border-b border-border">
           <SheetTitle>
@@ -323,7 +315,7 @@ export function ProspectSheet({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    {Object.entries(PROSPECT_STATUS_LABELS).map(([value, label]) => (
                       <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
@@ -400,7 +392,7 @@ export function ProspectSheet({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancelar
               </Button>
@@ -418,5 +410,21 @@ export function ProspectSheet({
         </form>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={warningOpen} onOpenChange={cancelDiscard}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tenés cambios sin guardar. Si cerrás ahora se perderán.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={cancelDiscard}>Seguir editando</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDiscard}>Descartar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

@@ -12,6 +12,17 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -32,6 +43,7 @@ import {
 } from "@/hooks/use-income";
 import { useProjects } from "@/hooks/use-projects";
 import { todayISO } from "@/lib/utils";
+import { INCOME_CATEGORY_LABELS } from "@/lib/constants/labels";
 import type { Income } from "@/lib/types/database.types";
 
 const schema = z.object({
@@ -62,12 +74,6 @@ interface IncomeSheetProps {
   income?: Income | null;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  proyecto: "Proyecto",
-  mantenimiento: "Mantenimiento",
-  consultoria: "Consultoría",
-  otro: "Otro",
-};
 
 export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
   const isEditing = !!income;
@@ -82,7 +88,7 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
     setValue,
     watch,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -126,6 +132,8 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
   }, [open, income, reset]);
 
   const isPending = createIncome.isPending || updateIncome.isPending;
+  const { handleOpenChange, warningOpen, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges(isDirty, onOpenChange);
   const currency = watch("currency");
   const invoiceSent = watch("invoice_sent");
   const paid = watch("paid");
@@ -169,7 +177,8 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0">
         <SheetHeader className="pb-4 border-b border-border">
           <SheetTitle>{isEditing ? "Editar ingreso" : "Nuevo ingreso"}</SheetTitle>
@@ -275,7 +284,7 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Sin categoría</SelectItem>
-                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  {Object.entries(INCOME_CATEGORY_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -331,7 +340,7 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancelar
               </Button>
@@ -349,5 +358,21 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
         </form>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={warningOpen} onOpenChange={cancelDiscard}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tenés cambios sin guardar. Si cerrás ahora se perderán.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={cancelDiscard}>Seguir editando</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDiscard}>Descartar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

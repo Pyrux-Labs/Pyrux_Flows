@@ -12,6 +12,17 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -26,6 +37,10 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useCreateService, useUpdateService, useDeleteService } from "@/hooks/use-services";
+import {
+  SERVICE_CATEGORY_LABELS,
+  SERVICE_UNIT_LABELS,
+} from "@/lib/constants/labels";
 import type { Service } from "@/lib/types/database.types";
 
 const schema = z.object({
@@ -55,19 +70,6 @@ interface ServiceSheetProps {
   service?: Service | null;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  web: "Web",
-  cms: "CMS",
-  automatizacion: "Automatización",
-  mantenimiento: "Mantenimiento",
-  consultoria: "Consultoría",
-};
-
-const UNIT_LABELS: Record<string, string> = {
-  proyecto: "Por proyecto",
-  hora: "Por hora",
-  mes: "Por mes",
-};
 
 export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps) {
   const isEditing = !!service;
@@ -81,7 +83,7 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
     setValue,
     watch,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -122,6 +124,8 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
   }, [open, service, reset]);
 
   const isPending = createService.isPending || updateService.isPending;
+  const { handleOpenChange, warningOpen, confirmDiscard, cancelDiscard } =
+    useUnsavedChanges(isDirty, onOpenChange);
 
   async function onSubmit(values: FormValues) {
     const price =
@@ -168,7 +172,8 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
   const active = watch("active");
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0">
         <SheetHeader className="pb-4 border-b border-border">
           <SheetTitle>{isEditing ? "Editar servicio" : "Nuevo servicio"}</SheetTitle>
@@ -239,7 +244,7 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Sin unidad</SelectItem>
-                  {Object.entries(UNIT_LABELS).map(([value, label]) => (
+                  {Object.entries(SERVICE_UNIT_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -261,7 +266,7 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Sin categoría</SelectItem>
-                  {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  {Object.entries(SERVICE_CATEGORY_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -308,7 +313,7 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={() => handleOpenChange(false)}
               >
                 Cancelar
               </Button>
@@ -326,5 +331,21 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
         </form>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={warningOpen} onOpenChange={cancelDiscard}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tenés cambios sin guardar. Si cerrás ahora se perderán.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={cancelDiscard}>Seguir editando</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDiscard}>Descartar</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
