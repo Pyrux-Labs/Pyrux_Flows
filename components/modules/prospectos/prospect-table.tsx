@@ -62,6 +62,8 @@ export function ProspectTable({
             <TableHead>Empresa</TableHead>
             <TableHead>Sector</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Teléfono</TableHead>
             <TableHead>Fuente</TableHead>
             <TableHead>Asignado</TableHead>
             <TableHead>Último contacto</TableHead>
@@ -97,6 +99,12 @@ export function ProspectTable({
                   ) : (
                     prospect.status
                   )}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {prospect.email ?? "—"}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {prospect.phone ?? "—"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {prospect.source
