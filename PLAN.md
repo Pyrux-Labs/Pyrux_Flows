@@ -51,16 +51,18 @@ Los datos actuales son de prueba y hay columnas/migraciones acumuladas.
 - **Plan:** reescribir `schema.sql` con todo integrado (sin migraciones separadas), correr en Supabase fresh, cargar datos reales
 - **Nota:** los archivos de migración (`migrations/`) se pueden borrar una vez que el schema final esté consolidado en `schema.sql`
 
-### Integración con cuenta bancaria empresarial
-Conectar movimientos bancarios directamente a gastos e ingresos.
-- **Estado:** bloqueado — no tienen cuenta empresarial todavía
-- **Retomar cuando:** abran la cuenta (probablemente Mercado Pago o banco digital)
-- **Approach posible:** webhooks de MP o scraping del extracto PDF
+### Integración con Mercado Pago (cuenta empresarial)
+Sincronizar automáticamente movimientos de MP (cobros y pagos) con gastos e ingresos de la app.
+- **Estado:** listo para planear — ya usan MP como cuenta empresarial
+- **Approach:** webhooks de MP para recibir eventos en tiempo real (pagos recibidos, pagos realizados)
+- **API MP:** requiere credenciales de la cuenta (Access Token) + endpoint público para recibir webhooks (disponible en producción con Vercel)
+- **Lo que resolvería:**
+  - Ingresos de clientes (ej. MedMind) se registran solos cuando MP acredita el cobro
+  - Gastos pagados con MP se importan automáticamente
+  - No hay que cargar nada a mano
 
 ### Gestión de cobros recurrentes a clientes (ej. MedMind)
-Registrar que a un cliente se le cobra un precio fijo por mes vía Mercado Pago y poder actualizarlo.
-- **Estado:** sin definir — necesita más contexto
-- **Preguntas a resolver antes de planear:**
-  - ¿Quieren que la app avise cuándo cobrar, o solo registrar que se cobró?
-  - ¿El precio puede cambiar por cliente o es el mismo para todos?
-  - ¿Quieren vincular esto a las tarifas existentes?
+Clientes que pagan un precio fijo mensual en ARS vía Mercado Pago.
+- **Estado:** listo para planear junto con la integración de MP
+- **Contexto:** cobran en pesos, el precio puede cambiar, necesitan poder actualizarlo
+- **Approach:** crear una sección de "Suscripciones activas" vinculada a proyectos — precio actual, cliente, día de cobro. Cuando MP notifica el pago, se registra el ingreso automáticamente con el monto real cobrado
