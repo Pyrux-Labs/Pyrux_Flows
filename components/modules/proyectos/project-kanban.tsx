@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, FolderKanban } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { ASSIGNED_LABELS } from "@/lib/constants/labels";
 import type { Project, ProjectStatus } from "@/lib/types/database.types";
 
 interface ProjectKanbanProps {
@@ -20,12 +21,6 @@ const COLUMNS: { status: ProjectStatus; label: string }[] = [
   { status: "completado", label: "Completado" },
   { status: "cancelado", label: "Cancelado" },
 ];
-
-const ASSIGNED_LABELS: Record<string, string> = {
-  juanma: "Juanma",
-  gino: "Gino",
-  ambos: "Ambos",
-};
 
 function ProjectCard({
   project,

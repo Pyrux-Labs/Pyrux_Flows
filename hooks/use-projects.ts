@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import {
+  simpleCreateHandlers,
+  simpleUpdateHandlers,
+  simpleDeleteHandlers,
+} from "@/lib/mutations";
+import {
   createProject,
   updateProject,
   deleteProject,
@@ -29,21 +34,15 @@ export function useCreateProject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ProjectPayload) => createProject(payload),
-    onMutate: async (payload) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Project[]>(QUERY_KEY);
-      const tempProject = {
+    ...simpleCreateHandlers<Project, ProjectPayload>(
+      queryClient,
+      QUERY_KEY,
+      (payload) => ({
         ...payload,
         id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
-      } as Project;
-      queryClient.setQueryData<Project[]>(QUERY_KEY, (old = []) => [tempProject, ...old]);
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(QUERY_KEY, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+      } as Project),
+    ),
   });
 }
 
@@ -52,18 +51,7 @@ export function useUpdateProject() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<ProjectPayload> }) =>
       updateProject(id, payload),
-    onMutate: async ({ id, payload }) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Project[]>(QUERY_KEY);
-      queryClient.setQueryData<Project[]>(QUERY_KEY, (old = []) =>
-        old.map((p) => (p.id === id ? { ...p, ...payload } : p))
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(QUERY_KEY, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    ...simpleUpdateHandlers<Project, Partial<ProjectPayload>>(queryClient, QUERY_KEY),
   });
 }
 
@@ -71,15 +59,6 @@ export function useDeleteProject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteProject(id),
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Project[]>(QUERY_KEY);
-      queryClient.setQueryData<Project[]>(QUERY_KEY, (old = []) => old.filter((p) => p.id !== id));
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(QUERY_KEY, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    ...simpleDeleteHandlers<Project>(queryClient, QUERY_KEY),
   });
 }

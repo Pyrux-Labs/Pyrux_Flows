@@ -6,21 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pencil, GripVertical } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { SOURCE_LABELS } from "@/lib/constants/labels";
 import type { Prospect } from "@/lib/types/database.types";
 
 interface ProspectCardProps {
   prospect: Prospect;
   onEdit: (prospect: Prospect) => void;
 }
-
-const SOURCE_LABELS: Record<string, string> = {
-  word_of_mouth: "Boca a boca",
-  instagram: "Instagram",
-  linkedin: "LinkedIn",
-  cold_email: "Cold email",
-  whatsapp: "WhatsApp",
-  otro: "Otro",
-};
 
 export function ProspectCard({ prospect, onEdit }: ProspectCardProps) {
   const {

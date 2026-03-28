@@ -3,6 +3,7 @@ import { startOfMonth, endOfMonth, startOfWeek, format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { TrendingUp, Receipt, Users, FolderKanban } from "lucide-react";
 import Link from "next/link";
+import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 
 async function getDashboardData() {
   const supabase = await createClient();
@@ -74,13 +75,6 @@ async function getDashboardData() {
   };
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  nuevo: "Nuevo",
-  contactado: "Contactado",
-  en_negociacion: "En negociación",
-  cerrado: "Cerrado",
-  perdido: "Perdido",
-};
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
@@ -167,7 +161,7 @@ export default async function DashboardPage() {
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {STATUS_LABELS[p.status] ?? p.status}
+                    {PROSPECT_STATUS_LABELS[p.status] ?? p.status}
                   </span>
                 </div>
               ))

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { prospectPayloadSchema } from "@/lib/validations/prospect";
 import type {
   ProspectStatus,
   ProspectSector,
@@ -22,15 +23,17 @@ export interface ProspectPayload {
 }
 
 export async function createProspect(payload: ProspectPayload) {
+  const validated = prospectPayloadSchema.parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("prospects").insert(payload);
+  const { error } = await supabase.from("prospects").insert(validated);
   if (error) throw new Error(error.message);
   revalidatePath("/prospectos");
 }
 
 export async function updateProspect(id: string, payload: Partial<ProspectPayload>) {
+  const validated = prospectPayloadSchema.partial().parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("prospects").update(payload).eq("id", id);
+  const { error } = await supabase.from("prospects").update(validated).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/prospectos");
 }

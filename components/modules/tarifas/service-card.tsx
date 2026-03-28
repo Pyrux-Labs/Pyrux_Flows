@@ -5,26 +5,16 @@ import { Switch } from "@/components/ui/switch";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUpdateService } from "@/hooks/use-services";
+import {
+  SERVICE_CATEGORY_LABELS,
+  SERVICE_UNIT_SHORT_LABELS,
+} from "@/lib/constants/labels";
 import type { Service } from "@/lib/types/database.types";
 
 interface ServiceCardProps {
   service: Service;
   onEdit: (service: Service) => void;
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  web: "Web",
-  cms: "CMS",
-  automatizacion: "Automatización",
-  mantenimiento: "Mantenimiento",
-  consultoria: "Consultoría",
-};
-
-const UNIT_LABELS: Record<string, string> = {
-  proyecto: "proyecto",
-  hora: "hora",
-  mes: "mes",
-};
 
 function formatPrice(price: number | null, currency: string): string {
   if (price === null) return "—";
@@ -74,7 +64,7 @@ export function ServiceCard({ service, onEdit }: ServiceCardProps) {
           {formatPrice(service.price, service.currency)}
           {service.unit && (
             <span className="text-xs font-normal text-muted-foreground ml-1">
-              / {UNIT_LABELS[service.unit] ?? service.unit}
+              / {SERVICE_UNIT_SHORT_LABELS[service.unit] ?? service.unit}
             </span>
           )}
         </div>
@@ -82,7 +72,7 @@ export function ServiceCard({ service, onEdit }: ServiceCardProps) {
         <div className="flex items-center gap-1.5">
           {service.category && (
             <Badge variant="secondary" className="text-xs">
-              {CATEGORY_LABELS[service.category] ?? service.category}
+              {SERVICE_CATEGORY_LABELS[service.category] ?? service.category}
             </Badge>
           )}
           {!service.active && (

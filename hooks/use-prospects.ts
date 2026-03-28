@@ -1,6 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import {
+  simpleCreateHandlers,
+  simpleUpdateHandlers,
+  simpleDeleteHandlers,
+} from "@/lib/mutations";
+import {
   createProspect,
   updateProspect,
   deleteProspect,
@@ -29,21 +34,15 @@ export function useCreateProspect() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ProspectPayload) => createProspect(payload),
-    onMutate: async (payload) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Prospect[]>(QUERY_KEY);
-      const tempProspect = {
+    ...simpleCreateHandlers<Prospect, ProspectPayload>(
+      queryClient,
+      QUERY_KEY,
+      (payload) => ({
         ...payload,
         id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
-      } as Prospect;
-      queryClient.setQueryData<Prospect[]>(QUERY_KEY, (old = []) => [tempProspect, ...old]);
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(QUERY_KEY, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+      } as Prospect),
+    ),
   });
 }
 
@@ -57,18 +56,7 @@ export function useUpdateProspect() {
       id: string;
       payload: Partial<ProspectPayload>;
     }) => updateProspect(id, payload),
-    onMutate: async ({ id, payload }) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Prospect[]>(QUERY_KEY);
-      queryClient.setQueryData<Prospect[]>(QUERY_KEY, (old = []) =>
-        old.map((p) => (p.id === id ? { ...p, ...payload } : p))
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(QUERY_KEY, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    ...simpleUpdateHandlers<Prospect, Partial<ProspectPayload>>(queryClient, QUERY_KEY),
   });
 }
 
@@ -76,17 +64,6 @@ export function useDeleteProspect() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteProspect(id),
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Prospect[]>(QUERY_KEY);
-      queryClient.setQueryData<Prospect[]>(QUERY_KEY, (old = []) =>
-        old.filter((p) => p.id !== id)
-      );
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(QUERY_KEY, context.previous);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    ...simpleDeleteHandlers<Prospect>(queryClient, QUERY_KEY),
   });
 }

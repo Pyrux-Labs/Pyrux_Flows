@@ -13,22 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { EXPENSE_CATEGORY_EXTENDED_LABELS } from "@/lib/constants/labels";
 import type { Expense } from "@/lib/types/database.types";
 
 interface ExpenseSummaryProps {
   expenses: Expense[];
   isLoading: boolean;
 }
-
-const CATEGORY_LABELS: Record<string, string> = {
-  herramientas: "Herramientas",
-  hosting: "Hosting",
-  marketing: "Marketing",
-  servicios: "Servicios",
-  impuestos: "Impuestos",
-  otro: "Otro",
-  sin_categoria: "Sin categoría",
-};
 
 const CHART_COLOR = "hsl(20 100% 62%)";
 const CHART_COLOR_USD = "hsl(30 45% 64%)";
@@ -42,7 +33,7 @@ function groupByCategory(expenses: Expense[], currency: "ARS" | "USD") {
   }
   return Object.entries(map)
     .map(([category, total]) => ({
-      category: CATEGORY_LABELS[category] ?? category,
+      category: EXPENSE_CATEGORY_EXTENDED_LABELS[category] ?? category,
       total,
     }))
     .sort((a, b) => b.total - a.total);

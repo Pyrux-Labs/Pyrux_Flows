@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, TrendingUp } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { INCOME_CATEGORY_LABELS } from "@/lib/constants/labels";
 import { useUpdateIncome } from "@/hooks/use-income";
 import type { Income, Project } from "@/lib/types/database.types";
 
@@ -25,12 +26,6 @@ interface IncomeTableProps {
   onEdit: (income: Income) => void;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  proyecto: "Proyecto",
-  mantenimiento: "Mantenimiento",
-  consultoria: "Consultoría",
-  otro: "Otro",
-};
 
 export function IncomeTable({
   income,
@@ -103,7 +98,7 @@ export function IncomeTable({
                 <TableCell>
                   {entry.category ? (
                     <Badge variant="secondary" className="text-xs">
-                      {CATEGORY_LABELS[entry.category] ?? entry.category}
+                      {INCOME_CATEGORY_LABELS[entry.category] ?? entry.category}
                     </Badge>
                   ) : (
                     <span className="text-muted-foreground text-xs">—</span>

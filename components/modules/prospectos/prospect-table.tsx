@@ -14,6 +14,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, Users } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import {
+  PROSPECT_STATUS_CONFIG,
+  SECTOR_LABELS,
+  SOURCE_LABELS,
+} from "@/lib/constants/labels";
 import type { Prospect } from "@/lib/types/database.types";
 
 interface ProspectTableProps {
@@ -22,36 +27,6 @@ interface ProspectTableProps {
   onEdit: (prospect: Prospect) => void;
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string }
-> = {
-  nuevo: { label: "Nuevo", className: "bg-blue-500/15 text-blue-400 border-blue-500/20" },
-  contactado: { label: "Contactado", className: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20" },
-  en_negociacion: { label: "En negociación", className: "bg-primary/15 text-primary border-primary/20" },
-  cerrado: { label: "Cerrado", className: "bg-green-500/15 text-green-400 border-green-500/20" },
-  perdido: { label: "Perdido", className: "bg-muted text-muted-foreground border-border" },
-};
-
-const SECTOR_LABELS: Record<string, string> = {
-  contabilidad: "Contabilidad",
-  legal: "Legal",
-  medico: "Médico",
-  estetica: "Estética",
-  gastronomia: "Gastronomía",
-  fitness: "Fitness",
-  dental: "Dental",
-  otro: "Otro",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  word_of_mouth: "Boca a boca",
-  instagram: "Instagram",
-  linkedin: "LinkedIn",
-  cold_email: "Cold email",
-  whatsapp: "WhatsApp",
-  otro: "Otro",
-};
 
 export function ProspectTable({
   prospects,
@@ -95,7 +70,7 @@ export function ProspectTable({
         </TableHeader>
         <TableBody>
           {prospects.map((prospect) => {
-            const statusCfg = STATUS_CONFIG[prospect.status];
+            const statusCfg = PROSPECT_STATUS_CONFIG[prospect.status];
             return (
               <TableRow key={prospect.id} className="hover:bg-secondary/50">
                 <TableCell className="font-medium">{prospect.name}</TableCell>

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { projectPayloadSchema } from "@/lib/validations/project";
 import type { ProjectStatus, AssignedTo } from "@/lib/types/database.types";
 
 export interface ProjectPayload {
@@ -18,15 +19,17 @@ export interface ProjectPayload {
 }
 
 export async function createProject(payload: ProjectPayload) {
+  const validated = projectPayloadSchema.parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("projects").insert(payload);
+  const { error } = await supabase.from("projects").insert(validated);
   if (error) throw new Error(error.message);
   revalidatePath("/proyectos");
 }
 
 export async function updateProject(id: string, payload: Partial<ProjectPayload>) {
+  const validated = projectPayloadSchema.partial().parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("projects").update(payload).eq("id", id);
+  const { error } = await supabase.from("projects").update(validated).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/proyectos");
 }

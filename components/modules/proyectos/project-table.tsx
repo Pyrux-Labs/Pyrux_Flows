@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, FolderKanban, CheckCircle2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { ASSIGNED_LABELS } from "@/lib/constants/labels";
 import type { Project } from "@/lib/types/database.types";
 
 interface ProjectTableProps {
@@ -22,6 +23,7 @@ interface ProjectTableProps {
   onEdit: (project: Project) => void;
 }
 
+// Status config is table-specific (includes Badge variant, not just a label)
 const STATUS_CONFIG: Record<
   string,
   { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
@@ -30,12 +32,6 @@ const STATUS_CONFIG: Record<
   pausado: { label: "Pausado", variant: "secondary" },
   completado: { label: "Completado", variant: "outline" },
   cancelado: { label: "Cancelado", variant: "destructive" },
-};
-
-const ASSIGNED_LABELS: Record<string, string> = {
-  juanma: "Juanma",
-  gino: "Gino",
-  ambos: "Ambos",
 };
 
 export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps) {

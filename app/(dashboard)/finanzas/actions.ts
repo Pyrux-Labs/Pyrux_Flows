@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { incomePayloadSchema } from "@/lib/validations/income";
 import type { IncomeCategory, Currency } from "@/lib/types/database.types";
 
 export interface IncomePayload {
@@ -16,15 +17,17 @@ export interface IncomePayload {
 }
 
 export async function createIncome(payload: IncomePayload) {
+  const validated = incomePayloadSchema.parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("income").insert(payload);
+  const { error } = await supabase.from("income").insert(validated);
   if (error) throw new Error(error.message);
   revalidatePath("/finanzas");
 }
 
 export async function updateIncome(id: string, payload: Partial<IncomePayload>) {
+  const validated = incomePayloadSchema.partial().parse(payload);
   const supabase = await createClient();
-  const { error } = await supabase.from("income").update(payload).eq("id", id);
+  const { error } = await supabase.from("income").update(validated).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/finanzas");
 }
