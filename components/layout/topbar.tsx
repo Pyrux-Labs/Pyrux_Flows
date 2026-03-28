@@ -15,6 +15,9 @@ export async function Topbar() {
 
   return (
     <header className="h-14 border-b border-border flex items-center justify-end px-6 gap-3 bg-card">
+      <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground font-mono">
+        <span>⌘</span>K
+      </kbd>
       <Avatar className="h-8 w-8">
         <AvatarFallback className="text-xs bg-primary/20 text-primary">
           {initials}

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { CommandPalette } from "@/components/shared/command-palette";
 import { Toaster } from "sonner";
 
 export default function DashboardLayout({
@@ -16,6 +17,7 @@ export default function DashboardLayout({
         <Topbar />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
+      <CommandPalette />
       <Toaster position="bottom-right" richColors />
     </div>
   );
