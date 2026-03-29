@@ -80,7 +80,7 @@ export function IncomeTable({
           {income.map((entry) => {
             const project = entry.project_id ? projectMap[entry.project_id] : null;
             return (
-              <TableRow key={entry.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => onEdit(entry)}>
+              <TableRow key={entry.id} className="hover:bg-secondary/50">
                 <TableCell className="font-medium">{entry.description}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {project ? (
@@ -110,7 +110,6 @@ export function IncomeTable({
                     onCheckedChange={(v) =>
                       handleToggle(entry.id, "invoice_sent", Boolean(v))
                     }
-                    onClick={(e) => e.stopPropagation()}
                     disabled={updateIncome.isPending}
                   />
                 </TableCell>
@@ -120,7 +119,6 @@ export function IncomeTable({
                     onCheckedChange={(v) =>
                       handleToggle(entry.id, "paid", Boolean(v))
                     }
-                    onClick={(e) => e.stopPropagation()}
                     disabled={updateIncome.isPending}
                   />
                 </TableCell>

@@ -59,7 +59,7 @@ export function ExpenseTable({ expenses, isLoading, onEdit }: ExpenseTableProps)
         </TableHeader>
         <TableBody>
           {expenses.map((expense) => (
-            <TableRow key={expense.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => onEdit(expense)}>
+            <TableRow key={expense.id} className="hover:bg-secondary/50">
               <TableCell className="font-medium">{expense.description}</TableCell>
               <TableCell className="text-right font-mono text-sm">
                 {formatCurrency(expense.amount, expense.currency)}

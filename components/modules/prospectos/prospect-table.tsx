@@ -75,7 +75,7 @@ export function ProspectTable({
         <TableBody>
           {prospects.map((prospect) => {
             return (
-              <TableRow key={prospect.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => onEdit(prospect)}>
+              <TableRow key={prospect.id} className="hover:bg-secondary/50">
                 <TableCell className="font-medium">{prospect.name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {prospect.business ?? "—"}

@@ -65,7 +65,7 @@ export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps)
         <TableBody>
           {projects.map((project) => {
             return (
-              <TableRow key={project.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => onEdit(project)}>
+              <TableRow key={project.id} className="hover:bg-secondary/50">
                 <TableCell className="font-medium">{project.name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {project.client_name}

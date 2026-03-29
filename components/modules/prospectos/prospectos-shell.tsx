@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useCreateShortcut } from "@/hooks/use-create-shortcut";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -33,8 +32,6 @@ export function ProspectosShell() {
     setEditingProspect(null);
     setSheetOpen(true);
   }
-
-  useCreateShortcut(handleAdd);
 
   function handleSheetOpenChange(open: boolean) {
     setSheetOpen(open);
