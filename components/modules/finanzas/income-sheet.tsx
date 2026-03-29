@@ -35,7 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
 import {
   useCreateIncome,
   useUpdateIncome,
@@ -80,6 +80,10 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
   const createIncome = useCreateIncome();
   const updateIncome = useUpdateIncome();
   const deleteIncome = useDeleteIncome();
+  const { handleDelete } = useDeleteWithUndo({
+    mutateAsync: deleteIncome.mutateAsync,
+    baseKey: ["income"],
+  });
   const { data: projects = [] } = useProjects();
 
   const {
@@ -161,18 +165,6 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar el ingreso");
-    }
-  }
-
-  async function onDelete() {
-    if (income) {
-      try {
-        await deleteIncome.mutateAsync(income.id);
-        toast.success("Ingreso eliminado");
-        onOpenChange(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar el ingreso");
-      }
     }
   }
 
@@ -313,28 +305,18 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
           </div>
 
           <SheetFooter className="pt-4 border-t border-border flex gap-2">
-            {isEditing && (
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={deleteIncome.isPending}
-                  >
-                    {deleteIncome.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Eliminar"
-                    )}
-                  </Button>
-                }
-                title="¿Eliminar ingreso?"
-                description="Esta acción no se puede deshacer."
-                confirmLabel="Eliminar"
-                destructive
-                onConfirm={onDelete}
-              />
+            {isEditing && income && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  handleDelete({ id: income.id, label: income.description });
+                }}
+              >
+                Eliminar
+              </Button>
             )}
             <div className="flex gap-2 ml-auto">
               <Button

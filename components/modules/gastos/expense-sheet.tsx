@@ -35,7 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
 import {
   useCreateExpense,
   useUpdateExpense,
@@ -86,6 +86,10 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
   const deleteExpense = useDeleteExpense();
+  const { handleDelete } = useDeleteWithUndo({
+    mutateAsync: deleteExpense.mutateAsync,
+    baseKey: ["expenses"],
+  });
 
   const {
     register,
@@ -166,18 +170,6 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar el gasto");
-    }
-  }
-
-  async function onDelete() {
-    if (expense) {
-      try {
-        await deleteExpense.mutateAsync(expense.id);
-        toast.success("Gasto eliminado");
-        onOpenChange(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar el gasto");
-      }
     }
   }
 
@@ -325,28 +317,18 @@ export function ExpenseSheet({ open, onOpenChange, expense }: ExpenseSheetProps)
           </div>
 
           <SheetFooter className="pt-4 border-t border-border flex gap-2">
-            {isEditing && (
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={deleteExpense.isPending}
-                  >
-                    {deleteExpense.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Eliminar"
-                    )}
-                  </Button>
-                }
-                title="¿Eliminar gasto?"
-                description="Esta acción no se puede deshacer."
-                confirmLabel="Eliminar"
-                destructive
-                onConfirm={onDelete}
-              />
+            {isEditing && expense && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  handleDelete({ id: expense.id, label: expense.description });
+                }}
+              >
+                Eliminar
+              </Button>
             )}
             <div className="flex gap-2 ml-auto">
               <Button

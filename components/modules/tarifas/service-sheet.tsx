@@ -35,7 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
 import { useCreateService, useUpdateService, useDeleteService } from "@/hooks/use-services";
 import {
   SERVICE_CATEGORY_LABELS,
@@ -76,6 +76,10 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
   const createService = useCreateService();
   const updateService = useUpdateService();
   const deleteService = useDeleteService();
+  const { handleDelete } = useDeleteWithUndo({
+    mutateAsync: deleteService.mutateAsync,
+    queryKey: ["services"],
+  });
 
   const {
     register,
@@ -153,18 +157,6 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar el servicio");
-    }
-  }
-
-  async function onDelete() {
-    if (service) {
-      try {
-        await deleteService.mutateAsync(service.id);
-        toast.success("Servicio eliminado");
-        onOpenChange(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar el servicio");
-      }
     }
   }
 
@@ -286,28 +278,18 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
           </div>
 
           <SheetFooter className="pt-4 border-t border-border flex gap-2">
-            {isEditing && (
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={deleteService.isPending}
-                  >
-                    {deleteService.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Eliminar"
-                    )}
-                  </Button>
-                }
-                title="¿Eliminar servicio?"
-                description="Esta acción no se puede deshacer."
-                confirmLabel="Eliminar"
-                destructive
-                onConfirm={onDelete}
-              />
+            {isEditing && service && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  handleDelete({ id: service.id, label: service.name });
+                }}
+              >
+                Eliminar
+              </Button>
             )}
             <div className="flex gap-2 ml-auto">
               <Button

@@ -35,7 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
 import {
   useCreateProject,
   useUpdateProject,
@@ -78,6 +78,10 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const { handleDelete } = useDeleteWithUndo({
+    mutateAsync: deleteProject.mutateAsync,
+    queryKey: ["projects"],
+  });
   const { data: prospects = [] } = useProspects();
 
   const {
@@ -164,18 +168,6 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar el proyecto");
-    }
-  }
-
-  async function onDelete() {
-    if (project) {
-      try {
-        await deleteProject.mutateAsync(project.id);
-        toast.success("Proyecto eliminado");
-        onOpenChange(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar el proyecto");
-      }
     }
   }
 
@@ -339,28 +331,18 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
           </div>
 
           <SheetFooter className="pt-4 border-t border-border flex gap-2">
-            {isEditing && (
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={deleteProject.isPending}
-                  >
-                    {deleteProject.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Eliminar"
-                    )}
-                  </Button>
-                }
-                title="¿Eliminar proyecto?"
-                description="Se eliminarán también los ingresos vinculados al proyecto."
-                confirmLabel="Eliminar"
-                destructive
-                onConfirm={onDelete}
-              />
+            {isEditing && project && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  handleDelete({ id: project.id, label: project.name });
+                }}
+              >
+                Eliminar
+              </Button>
             )}
             <div className="flex gap-2 ml-auto">
               <Button

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCreateShortcut } from "@/hooks/use-create-shortcut";
 import { startOfMonth } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,8 @@ export function GastosShell() {
     setEditingExpense(null);
     setSheetOpen(true);
   }
+
+  useCreateShortcut(handleAdd);
 
   function handleSheetOpenChange(open: boolean) {
     setSheetOpen(open);

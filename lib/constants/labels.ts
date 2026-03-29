@@ -63,6 +63,28 @@ export const PROJECT_STATUS_LABELS: Record<string, string> = {
   cancelado: "Cancelado",
 };
 
+export const PROJECT_STATUS_CONFIG: Record<
+  string,
+  { label: string; className: string }
+> = {
+  activo: {
+    label: "Activo",
+    className: "bg-green-500/15 text-green-400 border-green-500/20",
+  },
+  pausado: {
+    label: "Pausado",
+    className: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
+  },
+  completado: {
+    label: "Completado",
+    className: "bg-blue-500/15 text-blue-400 border-blue-500/20",
+  },
+  cancelado: {
+    label: "Cancelado",
+    className: "bg-red-500/15 text-red-400 border-red-500/20",
+  },
+};
+
 export const ASSIGNED_LABELS: Record<string, string> = {
   juanma: "Juanma",
   gino: "Gino",

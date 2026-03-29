@@ -34,7 +34,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
 import {
   useCreateProspect,
   useUpdateProspect,
@@ -106,6 +106,10 @@ export function ProspectSheet({
   const createProspect = useCreateProspect();
   const updateProspect = useUpdateProspect();
   const deleteProspect = useDeleteProspect();
+  const { handleDelete } = useDeleteWithUndo({
+    mutateAsync: deleteProspect.mutateAsync,
+    queryKey: ["prospects"],
+  });
 
   const {
     register,
@@ -191,18 +195,6 @@ export function ProspectSheet({
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar el prospecto");
-    }
-  }
-
-  async function onDelete() {
-    if (prospect) {
-      try {
-        await deleteProspect.mutateAsync(prospect.id);
-        toast.success("Prospecto eliminado");
-        onOpenChange(false);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Error al eliminar el prospecto");
-      }
     }
   }
 
@@ -365,28 +357,18 @@ export function ProspectSheet({
           </div>
 
           <SheetFooter className="pt-4 border-t border-border flex gap-2">
-            {isEditing && (
-              <ConfirmDialog
-                trigger={
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={deleteProspect.isPending}
-                  >
-                    {deleteProspect.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Eliminar"
-                    )}
-                  </Button>
-                }
-                title="¿Eliminar prospecto?"
-                description="Se eliminarán también los proyectos vinculados."
-                confirmLabel="Eliminar"
-                destructive
-                onConfirm={onDelete}
-              />
+            {isEditing && prospect && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  handleDelete({ id: prospect.id, label: prospect.name });
+                }}
+              >
+                Eliminar
+              </Button>
             )}
             <div className="flex gap-2 ml-auto">
               <Button

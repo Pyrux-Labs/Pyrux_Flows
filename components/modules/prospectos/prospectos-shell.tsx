@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useCreateShortcut } from "@/hooks/use-create-shortcut";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -16,7 +17,11 @@ export function ProspectosShell() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
 
-  const { data: prospects = [], isLoading } = useProspects();
+  const { data: allProspects = [], isLoading } = useProspects();
+  const prospects = useMemo(
+    () => allProspects.filter((p) => p.status !== "cerrado"),
+    [allProspects],
+  );
   const { visibleItems: visibleProspects, hasMore, remaining, loadMore } = usePagination(prospects);
 
   function handleEdit(prospect: Prospect) {
@@ -28,6 +33,8 @@ export function ProspectosShell() {
     setEditingProspect(null);
     setSheetOpen(true);
   }
+
+  useCreateShortcut(handleAdd);
 
   function handleSheetOpenChange(open: boolean) {
     setSheetOpen(open);

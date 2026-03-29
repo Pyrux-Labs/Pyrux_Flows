@@ -30,7 +30,7 @@ export function ServiceCard({ service, onEdit }: ServiceCardProps) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4 flex flex-col gap-3 hover:border-border/80 transition-colors">
+    <div className="bg-card border border-border rounded-lg p-4 flex flex-col gap-3 hover:border-border/80 transition-colors cursor-pointer" onClick={() => onEdit(service)}>
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium text-foreground text-sm leading-snug">
           {service.name}
@@ -39,6 +39,7 @@ export function ServiceCard({ service, onEdit }: ServiceCardProps) {
           <Switch
             checked={service.active}
             onCheckedChange={handleToggleActive}
+            onClick={(e) => e.stopPropagation()}
             disabled={updateService.isPending}
             className="scale-90"
           />

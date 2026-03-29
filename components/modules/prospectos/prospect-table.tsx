@@ -8,10 +8,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
 import { Pencil, Users } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
@@ -19,7 +19,8 @@ import {
   SECTOR_LABELS,
   SOURCE_LABELS,
 } from "@/lib/constants/labels";
-import type { Prospect } from "@/lib/types/database.types";
+import { useUpdateProspect } from "@/hooks/use-prospects";
+import type { Prospect, ProspectStatus } from "@/lib/types/database.types";
 
 interface ProspectTableProps {
   prospects: Prospect[];
@@ -33,6 +34,7 @@ export function ProspectTable({
   isLoading,
   onEdit,
 }: ProspectTableProps) {
+  const updateProspect = useUpdateProspect();
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -72,9 +74,8 @@ export function ProspectTable({
         </TableHeader>
         <TableBody>
           {prospects.map((prospect) => {
-            const statusCfg = PROSPECT_STATUS_CONFIG[prospect.status];
             return (
-              <TableRow key={prospect.id} className="hover:bg-secondary/50">
+              <TableRow key={prospect.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => onEdit(prospect)}>
                 <TableCell className="font-medium">{prospect.name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {prospect.business ?? "—"}
@@ -89,16 +90,16 @@ export function ProspectTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {statusCfg ? (
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${statusCfg.className}`}
-                    >
-                      {statusCfg.label}
-                    </Badge>
-                  ) : (
-                    prospect.status
-                  )}
+                  <StatusBadgeDropdown
+                    currentStatus={prospect.status}
+                    statusConfig={PROSPECT_STATUS_CONFIG}
+                    onStatusChange={(newStatus) =>
+                      updateProspect.mutate({
+                        id: prospect.id,
+                        payload: { status: newStatus as ProspectStatus },
+                      })
+                    }
+                  />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {prospect.email ?? "—"}

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
+  UserCheck,
   FolderKanban,
   TrendingUp,
   Receipt,
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/prospectos", label: "Prospectos", icon: Users },
+  { href: "/clientes", label: "Clientes", icon: UserCheck },
   { href: "/proyectos", label: "Proyectos", icon: FolderKanban },
   { href: "/finanzas", label: "Finanzas", icon: TrendingUp },
   { href: "/gastos", label: "Gastos", icon: Receipt },

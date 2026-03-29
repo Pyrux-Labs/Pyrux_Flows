@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCreateShortcut } from "@/hooks/use-create-shortcut";
 import { useServices } from "@/hooks/use-services";
 import { usePagination } from "@/hooks/use-pagination";
 import { ServiceCard } from "./service-card";
@@ -26,6 +27,8 @@ export function ServiceGrid() {
     setEditingService(null);
     setSheetOpen(true);
   }
+
+  useCreateShortcut(handleAdd);
 
   function handleSheetOpenChange(open: boolean) {
     setSheetOpen(open);

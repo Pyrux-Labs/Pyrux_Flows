@@ -8,14 +8,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
 import { Pencil, FolderKanban, CheckCircle2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ASSIGNED_LABELS } from "@/lib/constants/labels";
-import type { Project } from "@/lib/types/database.types";
+import { ASSIGNED_LABELS, PROJECT_STATUS_CONFIG } from "@/lib/constants/labels";
+import { useUpdateProject } from "@/hooks/use-projects";
+import type { Project, ProjectStatus } from "@/lib/types/database.types";
 
 interface ProjectTableProps {
   projects: Project[];
@@ -23,18 +24,8 @@ interface ProjectTableProps {
   onEdit: (project: Project) => void;
 }
 
-// Status config is table-specific (includes Badge variant, not just a label)
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "outline" | "destructive" }
-> = {
-  activo: { label: "Activo", variant: "default" },
-  pausado: { label: "Pausado", variant: "secondary" },
-  completado: { label: "Completado", variant: "outline" },
-  cancelado: { label: "Cancelado", variant: "destructive" },
-};
-
 export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps) {
+  const updateProject = useUpdateProject();
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -73,20 +64,23 @@ export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps)
         </TableHeader>
         <TableBody>
           {projects.map((project) => {
-            const statusCfg = STATUS_CONFIG[project.status] ?? {
-              label: project.status,
-              variant: "secondary" as const,
-            };
             return (
-              <TableRow key={project.id} className="hover:bg-secondary/50">
+              <TableRow key={project.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => onEdit(project)}>
                 <TableCell className="font-medium">{project.name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {project.client_name}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={statusCfg.variant} className="text-xs">
-                    {statusCfg.label}
-                  </Badge>
+                  <StatusBadgeDropdown
+                    currentStatus={project.status}
+                    statusConfig={PROJECT_STATUS_CONFIG}
+                    onStatusChange={(newStatus) =>
+                      updateProject.mutate({
+                        id: project.id,
+                        payload: { status: newStatus as ProjectStatus },
+                      })
+                    }
+                  />
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {project.start_date ? formatDate(project.start_date) : "—"}
