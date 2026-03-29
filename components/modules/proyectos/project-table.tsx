@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
 import { Pencil, FolderKanban, CheckCircle2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ASSIGNED_LABELS, PROJECT_STATUS_CONFIG } from "@/lib/constants/labels";
+import { PROJECT_STATUS_CONFIG } from "@/lib/constants/labels";
 import { useUpdateProject } from "@/hooks/use-projects";
 import type { Project, ProjectStatus } from "@/lib/types/database.types";
 
@@ -58,7 +58,6 @@ export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps)
             <TableHead>Fin</TableHead>
             <TableHead className="text-right">Presupuesto</TableHead>
             <TableHead className="text-center">Pagado</TableHead>
-            <TableHead>Asignado</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -99,11 +98,6 @@ export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps)
                   ) : (
                     <span className="text-muted-foreground text-xs">—</span>
                   )}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {project.assigned_to
-                    ? ASSIGNED_LABELS[project.assigned_to] ?? project.assigned_to
-                    : "—"}
                 </TableCell>
                 <TableCell>
                   <Button

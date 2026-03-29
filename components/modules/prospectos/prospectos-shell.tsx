@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -13,6 +14,11 @@ import { usePagination } from "@/hooks/use-pagination";
 import type { Prospect } from "@/lib/types/database.types";
 
 export function ProspectosShell() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const openedEditRef = useRef<string | null>(null);
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
 
@@ -22,6 +28,17 @@ export function ProspectosShell() {
     [allProspects],
   );
   const { visibleItems: visibleProspects, hasMore, remaining, loadMore } = usePagination(prospects);
+
+  useEffect(() => {
+    if (!editId || isLoading || openedEditRef.current === editId) return;
+    const prospect = allProspects.find((p) => p.id === editId);
+    if (prospect) {
+      openedEditRef.current = editId;
+      setEditingProspect(prospect);
+      setSheetOpen(true);
+      router.replace("/prospectos");
+    }
+  }, [editId, isLoading, allProspects, router]);
 
   function handleEdit(prospect: Prospect) {
     setEditingProspect(prospect);

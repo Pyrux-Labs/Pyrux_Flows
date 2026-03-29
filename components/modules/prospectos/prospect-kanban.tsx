@@ -34,7 +34,6 @@ const COLUMNS: { status: ProspectStatus; label: string }[] = [
   { status: "nuevo", label: "Nuevo" },
   { status: "contactado", label: "Contactado" },
   { status: "en_negociacion", label: "En negociación" },
-  { status: "cerrado", label: "Cerrado" },
   { status: "perdido", label: "Perdido" },
 ];
 
@@ -105,7 +104,7 @@ export function ProspectKanban({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {COLUMNS.map((col) => (
           <div key={col.status} className="space-y-2">
             <Skeleton className="h-6 w-24 rounded-full" />
@@ -198,7 +197,7 @@ export function ProspectKanban({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {COLUMNS.map((col) => (
           <DroppableColumn
             key={col.status}

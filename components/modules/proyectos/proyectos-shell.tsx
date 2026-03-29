@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -12,11 +13,27 @@ import { usePagination } from "@/hooks/use-pagination";
 import type { Project } from "@/lib/types/database.types";
 
 export function ProyectosShell() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const openedEditRef = useRef<string | null>(null);
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading } = useProjects();
   const { visibleItems: visibleProjects, hasMore, remaining, loadMore } = usePagination(projects);
+
+  useEffect(() => {
+    if (!editId || isLoading || openedEditRef.current === editId) return;
+    const project = projects.find((p) => p.id === editId);
+    if (project) {
+      openedEditRef.current = editId;
+      setEditingProject(project);
+      setSheetOpen(true);
+      router.replace("/proyectos");
+    }
+  }, [editId, isLoading, projects, router]);
 
   function handleEdit(project: Project) {
     setEditingProject(project);

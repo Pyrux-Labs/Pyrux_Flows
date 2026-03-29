@@ -42,10 +42,7 @@ import {
   useDeleteProject,
 } from "@/hooks/use-projects";
 import { useProspects } from "@/hooks/use-prospects";
-import {
-  PROJECT_STATUS_LABELS,
-  ASSIGNED_LABELS,
-} from "@/lib/constants/labels";
+import { PROJECT_STATUS_LABELS } from "@/lib/constants/labels";
 import type { Project } from "@/lib/types/database.types";
 
 const schema = z.object({
@@ -61,7 +58,6 @@ const schema = z.object({
   ),
   paid: z.boolean(),
   notes: z.string().optional().nullable(),
-  assigned_to: z.enum(["juanma", "gino", "ambos"]).optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -103,7 +99,6 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
       budgetInput: "",
       paid: false,
       notes: "",
-      assigned_to: null,
     },
   });
 
@@ -121,7 +116,6 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
               budgetInput: project.budget != null ? String(project.budget) : "",
               paid: project.paid,
               notes: project.notes ?? "",
-              assigned_to: project.assigned_to ?? null,
             }
           : {
               name: "",
@@ -133,7 +127,6 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
               budgetInput: "",
               paid: false,
               notes: "",
-              assigned_to: null,
             },
       );
     }
@@ -154,7 +147,6 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
       budget: values.budgetInput ? parseFloat(values.budgetInput) : null,
       paid: values.paid,
       notes: values.notes || null,
-      assigned_to: values.assigned_to ?? null,
     };
 
     try {
@@ -282,31 +274,6 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
                   {errors.budgetInput.message}
                 </p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Asignado a</Label>
-              <Select
-                value={watch("assigned_to") ?? "_none"}
-                onValueChange={(v) =>
-                  setValue(
-                    "assigned_to",
-                    v === "_none" ? null : (v as FormValues["assigned_to"]),
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sin asignar" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">Sin asignar</SelectItem>
-                  {Object.entries(ASSIGNED_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="flex items-center justify-between">

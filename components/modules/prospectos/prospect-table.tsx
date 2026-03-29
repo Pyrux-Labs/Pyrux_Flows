@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
-import { Pencil, Users } from "lucide-react";
+import { Pencil, Users, MessageSquare } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
   PROSPECT_STATUS_CONFIG,
@@ -67,7 +67,6 @@ export function ProspectTable({
             <TableHead>Email</TableHead>
             <TableHead>Teléfono</TableHead>
             <TableHead>Fuente</TableHead>
-            <TableHead>Asignado</TableHead>
             <TableHead>Último contacto</TableHead>
             <TableHead className="w-12" />
           </TableRow>
@@ -76,7 +75,16 @@ export function ProspectTable({
           {prospects.map((prospect) => {
             return (
               <TableRow key={prospect.id} className="hover:bg-secondary/50">
-                <TableCell className="font-medium">{prospect.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-1.5">
+                    {prospect.name}
+                    {prospect.notes && (
+                      <span title={prospect.notes} className="shrink-0">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {prospect.business ?? "—"}
                 </TableCell>
@@ -111,9 +119,6 @@ export function ProspectTable({
                   {prospect.source
                     ? SOURCE_LABELS[prospect.source] ?? prospect.source
                     : "—"}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground capitalize">
-                  {prospect.assigned_to ?? "—"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {prospect.last_contact ? formatDate(prospect.last_contact) : "—"}

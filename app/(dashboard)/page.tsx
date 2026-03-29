@@ -1,10 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth, endOfMonth, startOfWeek, subMonths, format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { TrendingUp, Receipt, Users, FolderKanban, Clock } from "lucide-react";
+import { TrendingUp, Receipt, Users, FolderKanban, Clock, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import { TrendsChart } from "@/components/modules/dashboard/trends-chart";
+
+interface DolarBlue {
+  compra: number;
+  venta: number;
+  fechaActualizacion: string;
+}
+
+async function getDolarBlue(): Promise<DolarBlue | null> {
+  try {
+    const res = await fetch("https://dolarapi.com/v1/dolares/blue", {
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
 
 async function getDashboardData() {
   const supabase = await createClient();
@@ -25,8 +43,9 @@ async function getDashboardData() {
   const trendFrom = trendMonths[0].from;
   const trendTo = trendMonths[5].to;
 
-  const [incomeRes, expensesRes, prospectsThisWeekRes, activeProjectsRes, recentProspectsRes, recentIncomeRes, settingsRes, pendingRes, trendIncomeRes, trendExpensesRes] =
+  const [dolarBlue, incomeRes, expensesRes, prospectsThisWeekRes, activeProjectsRes, recentProspectsRes, recentIncomeRes, pendingRes, trendIncomeRes, trendExpensesRes] =
     await Promise.all([
+      getDolarBlue(),
       supabase
         .from("income")
         .select("amount, currency")
@@ -55,7 +74,6 @@ async function getDashboardData() {
         .select("id, description, amount, currency, date")
         .order("date", { ascending: false })
         .limit(5),
-      supabase.from("settings").select("key, value"),
       // Pending collections: invoice sent but not yet paid
       supabase
         .from("income")
@@ -78,56 +96,52 @@ async function getDashboardData() {
 
   const income = incomeRes.data ?? [];
   const expenses = expensesRes.data ?? [];
-  const settings = Object.fromEntries(
-    (settingsRes.data ?? []).map((r) => [r.key, r.value]),
-  );
-  const usdRate = parseFloat(settings["usd_ars_rate"] ?? "1");
+  // Use compra rate: when receiving ARS, you're converting to USD at compra price
+  const arsToUsd = (ars: number) => dolarBlue ? ars / dolarBlue.compra : 0;
 
-  const incomeARS = income.filter((i) => i.currency === "ARS").reduce((s, i) => s + i.amount, 0);
-  const incomeUSD = income.filter((i) => i.currency === "USD").reduce((s, i) => s + i.amount, 0);
-  const expensesARS = expenses.filter((e) => e.currency === "ARS").reduce((s, e) => s + e.amount, 0);
-  const expensesUSD = expenses.filter((e) => e.currency === "USD").reduce((s, e) => s + e.amount, 0);
-
-  const totalIncome = incomeARS + incomeUSD * usdRate;
-  const totalExpenses = expensesARS + expensesUSD * usdRate;
+  const totalIncomeUSD =
+    income.reduce((s, i) => s + (i.currency === "USD" ? i.amount : arsToUsd(i.amount)), 0);
+  const totalExpensesUSD =
+    expenses.reduce((s, e) => s + (e.currency === "USD" ? e.amount : arsToUsd(e.amount)), 0);
+  const netoUSD = totalIncomeUSD - totalExpensesUSD;
 
   // Pending collections
   const pending = pendingRes.data ?? [];
-  const pendingARS = pending.filter((i) => i.currency === "ARS").reduce((s, i) => s + i.amount, 0);
-  const pendingUSD = pending.filter((i) => i.currency === "USD").reduce((s, i) => s + i.amount, 0);
+  const pendingUSD =
+    pending.reduce((s, i) => s + (i.currency === "USD" ? i.amount : arsToUsd(i.amount)), 0);
 
-  // Monthly trends (convert all to ARS equivalent)
+  // Monthly trends in USD using stored exchange_rate per transaction, fallback to live rate
   const trendIncome = trendIncomeRes.data ?? [];
   const trendExpenses = trendExpensesRes.data ?? [];
+  const fallbackRate = dolarBlue?.venta ?? 1;
+  const toUSD = (amount: number, currency: string) =>
+    currency === "USD" ? amount : amount / fallbackRate;
+
   const trendsData = trendMonths.map(({ label, from, to }) => {
     const monthIncome = trendIncome.filter((i) => i.date >= from && i.date <= to);
     const monthExpenses = trendExpenses.filter((e) => e.date >= from && e.date <= to);
     const ingresos = monthIncome.reduce(
-      (s, i) => s + (i.currency === "USD" ? i.amount * usdRate : i.amount),
+      (s, i) => s + toUSD(i.amount, i.currency),
       0,
     );
     const gastos = monthExpenses.reduce(
-      (s, e) => s + (e.currency === "USD" ? e.amount * usdRate : e.amount),
+      (s, e) => s + toUSD(e.amount, e.currency),
       0,
     );
     return { month: label.charAt(0).toUpperCase() + label.slice(1), ingresos, gastos };
   });
 
   return {
-    incomeARS,
-    incomeUSD,
-    expensesARS,
-    expensesUSD,
-    totalIncome,
-    totalExpenses,
-    pendingARS,
+    dolarBlue,
+    totalIncomeUSD,
+    totalExpensesUSD,
+    netoUSD,
     pendingUSD,
     trendsData,
     prospectsThisWeek: prospectsThisWeekRes.count ?? 0,
     activeProjects: activeProjectsRes.count ?? 0,
     recentProspects: recentProspectsRes.data ?? [],
     recentIncome: recentIncomeRes.data ?? [],
-    usdRate,
   };
 }
 
@@ -145,31 +159,31 @@ export default async function DashboardPage() {
       </div>
 
       {/* Summary widgets */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <Widget
           icon={TrendingUp}
           label="Ingresos del mes"
-          primary={formatCurrency(data.incomeARS, "ARS")}
-          secondary={
-            data.incomeUSD > 0
-              ? formatCurrency(data.incomeUSD, "USD")
-              : undefined
-          }
-          subtext={`≈ ${formatCurrency(data.totalIncome, "ARS")} combinado`}
+          primary={formatCurrency(data.totalIncomeUSD, "USD")}
           href="/finanzas"
         />
         <Widget
           icon={Receipt}
           label="Gastos del mes"
-          primary={formatCurrency(data.expensesARS, "ARS")}
-          secondary={
-            data.expensesUSD > 0
-              ? formatCurrency(data.expensesUSD, "USD")
-              : undefined
-          }
-          subtext={`≈ ${formatCurrency(data.totalExpenses, "ARS")} combinado`}
+          primary={formatCurrency(data.totalExpensesUSD, "USD")}
           href="/gastos"
         />
+        <Widget
+          icon={data.netoUSD >= 0 ? TrendingUp : Receipt}
+          label="Neto del mes"
+          primary={formatCurrency(Math.abs(data.netoUSD), "USD")}
+          subtext={data.netoUSD >= 0 ? "ganancia" : "pérdida"}
+          positive={data.netoUSD >= 0}
+          href="/finanzas"
+        />
+      </div>
+
+      {/* Secondary widgets */}
+      <div className="grid grid-cols-2 gap-4">
         <Widget
           icon={Users}
           label="Prospectos esta semana"
@@ -186,26 +200,55 @@ export default async function DashboardPage() {
         />
       </div>
 
+      {/* Dólar blue */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <DollarSign className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">Dólar blue</span>
+          {data.dolarBlue && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              Actualizado {new Date(data.dolarBlue.fechaActualizacion).toLocaleString("es-AR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: "America/Argentina/Buenos_Aires",
+              })}
+            </span>
+          )}
+        </div>
+        {data.dolarBlue ? (
+          <div className="flex gap-6">
+            <div>
+              <p className="text-xs text-muted-foreground">Compra</p>
+              <p className="text-xl font-bold text-foreground">
+                {formatCurrency(data.dolarBlue.compra, "ARS")}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Venta</p>
+              <p className="text-xl font-bold text-foreground">
+                {formatCurrency(data.dolarBlue.venta, "ARS")}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No disponible</p>
+        )}
+      </div>
+
       {/* Pending collections */}
-      {(data.pendingARS > 0 || data.pendingUSD > 0) && (
+      {data.pendingUSD > 0 && (
         <Link
           href="/finanzas"
           className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors"
         >
           <Clock className="h-4 w-4 text-amber-500 shrink-0" />
           <span className="text-sm text-muted-foreground">Pendiente de cobro:</span>
-          <div className="flex gap-3 ml-1">
-            {data.pendingARS > 0 && (
-              <span className="text-sm font-semibold text-foreground">
-                {formatCurrency(data.pendingARS, "ARS")}
-              </span>
-            )}
-            {data.pendingUSD > 0 && (
-              <span className="text-sm font-semibold text-foreground">
-                {formatCurrency(data.pendingUSD, "USD")}
-              </span>
-            )}
-          </div>
+          <span className="text-sm font-semibold text-foreground ml-1">
+            {formatCurrency(data.pendingUSD, "USD")}
+          </span>
         </Link>
       )}
 
@@ -305,17 +348,24 @@ function Widget({
   icon: Icon,
   label,
   primary,
-  secondary,
   subtext,
   href,
+  positive,
 }: {
   icon: React.ElementType;
   label: string;
   primary: string;
-  secondary?: string;
   subtext?: string;
   href: string;
+  positive?: boolean;
 }) {
+  const primaryColor =
+    positive === undefined
+      ? "text-foreground"
+      : positive
+        ? "text-green-400"
+        : "text-destructive";
+
   return (
     <Link
       href={href}
@@ -325,10 +375,7 @@ function Widget({
         <Icon className="h-4 w-4 text-primary" />
         <span className="text-xs text-muted-foreground">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-foreground">{primary}</p>
-      {secondary && (
-        <p className="text-sm font-semibold text-accent">{secondary}</p>
-      )}
+      <p className={`text-2xl font-bold ${primaryColor}`}>{primary}</p>
       {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
     </Link>
   );

@@ -84,7 +84,6 @@ const schema = z.object({
     "perdido",
   ]),
   notes: z.string().optional().nullable(),
-  assigned_to: z.enum(["juanma", "gino"]).optional().nullable(),
   last_contact: z.string().optional().nullable(),
 });
 
@@ -129,7 +128,6 @@ export function ProspectSheet({
       source: null,
       status: "nuevo",
       notes: "",
-      assigned_to: null,
       last_contact: null,
     },
   });
@@ -147,7 +145,6 @@ export function ProspectSheet({
               source: prospect.source ?? null,
               status: prospect.status,
               notes: prospect.notes ?? "",
-              assigned_to: prospect.assigned_to ?? null,
               last_contact: prospect.last_contact ?? null,
             }
           : {
@@ -159,7 +156,6 @@ export function ProspectSheet({
               source: null,
               status: "nuevo",
               notes: "",
-              assigned_to: null,
               last_contact: null,
             },
       );
@@ -180,7 +176,6 @@ export function ProspectSheet({
       source: values.source ?? null,
       status: values.status,
       notes: values.notes || null,
-      assigned_to: values.assigned_to ?? null,
       last_contact: values.last_contact || null,
     };
 
@@ -215,7 +210,7 @@ export function ProspectSheet({
           <div className="flex-1 overflow-y-auto py-4 space-y-4 px-1">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre *</Label>
-              <Input id="name" {...register("name")} placeholder="Nombre completo" />
+              <Input id="name" {...register("name")} placeholder="Nombre o empresa" />
               {errors.name && (
                 <p className="text-xs text-destructive">{errors.name.message}</p>
               )}
@@ -294,49 +289,25 @@ export function ProspectSheet({
               <Input id="phone" {...register("phone")} placeholder="+54 11 ..." />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Estado</Label>
-                <Select
-                  value={watch("status")}
-                  onValueChange={(v) =>
-                    setValue("status", v as FormValues["status"])
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PROSPECT_STATUS_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Asignado a</Label>
-                <Select
-                  value={watch("assigned_to") ?? "_none"}
-                  onValueChange={(v) =>
-                    setValue(
-                      "assigned_to",
-                      v === "_none" ? null : (v as FormValues["assigned_to"]),
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sin asignar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Sin asignar</SelectItem>
-                    <SelectItem value="juanma">Juanma</SelectItem>
-                    <SelectItem value="gino">Gino</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Estado</Label>
+              <Select
+                value={watch("status")}
+                onValueChange={(v) =>
+                  setValue("status", v as FormValues["status"])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PROSPECT_STATUS_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

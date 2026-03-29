@@ -41,16 +41,16 @@ function CustomTooltip({ active, payload, label }: TooltipEntry) {
       <p className="font-medium text-foreground mb-1">{label}</p>
       <div className="flex justify-between gap-4">
         <span className="text-muted-foreground">Ingresos</span>
-        <span className="font-mono text-foreground">{formatCurrency(ingresos, "ARS")}</span>
+        <span className="font-mono text-foreground">{formatCurrency(ingresos, "USD")}</span>
       </div>
       <div className="flex justify-between gap-4">
         <span className="text-muted-foreground">Gastos</span>
-        <span className="font-mono text-foreground">{formatCurrency(gastos, "ARS")}</span>
+        <span className="font-mono text-foreground">{formatCurrency(gastos, "USD")}</span>
       </div>
       <div className="border-t border-border pt-1.5 flex justify-between gap-4">
         <span className="text-muted-foreground">{positivo ? "Ganancia" : "Pérdida"}</span>
         <span className={`font-mono font-semibold ${positivo ? "text-green-400" : "text-destructive"}`}>
-          {positivo ? "+" : ""}{formatCurrency(resultado, "ARS")}
+          {positivo ? "+" : ""}{formatCurrency(resultado, "USD")}
         </span>
       </div>
     </div>
@@ -72,7 +72,7 @@ export function TrendsChart({ data }: TrendsChartProps) {
           tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
           axisLine={false}
           tickLine={false}
-          tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+          tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`}
           width={48}
         />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--secondary)" }} />

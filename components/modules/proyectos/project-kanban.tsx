@@ -6,7 +6,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, FolderKanban } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { ASSIGNED_LABELS } from "@/lib/constants/labels";
 import type { Project, ProjectStatus } from "@/lib/types/database.types";
 
 interface ProjectKanbanProps {
@@ -52,11 +51,6 @@ function ProjectCard({
           </span>
         ) : (
           <span />
-        )}
-        {project.assigned_to && (
-          <Badge variant="outline" className="text-xs">
-            {ASSIGNED_LABELS[project.assigned_to] ?? project.assigned_to}
-          </Badge>
         )}
       </div>
     </div>

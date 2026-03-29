@@ -65,18 +65,13 @@ export function ProspectCard({ prospect, onEdit }: ProspectCardProps) {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between gap-2 pl-5">
-        {prospect.source && (
+      {prospect.source && (
+        <div className="pl-5">
           <span className="text-xs text-muted-foreground truncate">
             {SOURCE_LABELS[prospect.source] ?? prospect.source}
           </span>
-        )}
-        {prospect.assigned_to && (
-          <Badge variant="outline" className="text-xs shrink-0 capitalize">
-            {prospect.assigned_to}
-          </Badge>
-        )}
-      </div>
+        </div>
+      )}
 
       {prospect.last_contact && (
         <p className="text-xs text-muted-foreground pl-5">

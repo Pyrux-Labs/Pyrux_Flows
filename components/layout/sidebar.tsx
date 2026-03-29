@@ -10,7 +10,6 @@ import {
   TrendingUp,
   Receipt,
   Tag,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +21,6 @@ const navItems = [
   { href: "/finanzas", label: "Finanzas", icon: TrendingUp },
   { href: "/gastos", label: "Gastos", icon: Receipt },
   { href: "/tarifas", label: "Tarifas", icon: Tag },
-  { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
 export function Sidebar() {

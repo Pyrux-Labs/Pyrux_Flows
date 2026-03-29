@@ -18,8 +18,11 @@ export function CommandPalette() {
   const router = useRouter();
   const { open, setOpen } = useCommandPalette();
 
-  const { data: prospects = [] } = useProspects();
+  const { data: allProspects = [] } = useProspects();
   const { data: projects = [] } = useProjects();
+
+  const prospects = allProspects.filter((p) => p.status !== "cerrado");
+  const clients = allProspects.filter((p) => p.status === "cerrado");
 
   function navigate(path: string) {
     setOpen(false);
@@ -28,9 +31,29 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Buscar prospectos y proyectos..." />
+      <CommandInput placeholder="Buscar prospectos, clientes y proyectos..." />
       <CommandList>
         <CommandEmpty>Sin resultados.</CommandEmpty>
+
+        {clients.length > 0 && (
+          <CommandGroup heading="Clientes">
+            {clients.map((client) => (
+              <CommandItem
+                key={client.id}
+                value={`${client.name} ${client.business ?? ""}`}
+                onSelect={() => navigate(`/clientes?edit=${client.id}`)}
+              >
+                <User className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                <span>{client.name}</span>
+                {client.business && (
+                  <span className="ml-1.5 text-muted-foreground text-xs truncate">
+                    — {client.business}
+                  </span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
 
         {prospects.length > 0 && (
           <CommandGroup heading="Prospectos">
@@ -38,7 +61,7 @@ export function CommandPalette() {
               <CommandItem
                 key={prospect.id}
                 value={`${prospect.name} ${prospect.business ?? ""}`}
-                onSelect={() => navigate("/prospectos")}
+                onSelect={() => navigate(`/prospectos?edit=${prospect.id}`)}
               >
                 <User className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
                 <span>{prospect.name}</span>
@@ -58,7 +81,7 @@ export function CommandPalette() {
               <CommandItem
                 key={project.id}
                 value={`${project.name} ${project.client_name}`}
-                onSelect={() => navigate("/proyectos")}
+                onSelect={() => navigate(`/proyectos?edit=${project.id}`)}
               >
                 <FolderKanban className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
                 <span>{project.name}</span>

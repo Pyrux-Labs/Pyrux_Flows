@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ClientTable } from "./client-table";
 import { ProspectSheet } from "@/components/modules/prospectos/prospect-sheet";
 import { useProspects } from "@/hooks/use-prospects";
@@ -10,6 +11,11 @@ import { Button } from "@/components/ui/button";
 import type { Prospect } from "@/lib/types/database.types";
 
 export function ClientesShell() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+  const openedEditRef = useRef<string | null>(null);
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
 
@@ -31,6 +37,17 @@ export function ClientesShell() {
   }, [projects]);
 
   const { visibleItems, hasMore, remaining, loadMore } = usePagination(clients);
+
+  useEffect(() => {
+    if (!editId || loadingProspects || openedEditRef.current === editId) return;
+    const client = allProspects.find((p) => p.id === editId);
+    if (client) {
+      openedEditRef.current = editId;
+      setEditingProspect(client);
+      setSheetOpen(true);
+      router.replace("/clientes");
+    }
+  }, [editId, loadingProspects, allProspects, router]);
 
   function handleEdit(prospect: Prospect) {
     setEditingProspect(prospect);

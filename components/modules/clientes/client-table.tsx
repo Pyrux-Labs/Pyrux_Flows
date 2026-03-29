@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { UserCheck } from "lucide-react";
+import { UserCheck, MessageSquare } from "lucide-react";
 import type { Prospect } from "@/lib/types/database.types";
 
 interface ClientTableProps {
@@ -63,12 +63,17 @@ export function ClientTable({
           {clients.map((client) => {
             const count = projectCounts[client.id] ?? 0;
             return (
-              <TableRow
-                key={client.id}
-                className="cursor-pointer hover:bg-secondary/50"
-                onClick={() => onEdit(client)}
-              >
-                <TableCell className="font-medium">{client.name}</TableCell>
+              <TableRow key={client.id}>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-1.5">
+                    {client.name}
+                    {client.notes && (
+                      <span title={client.notes} className="shrink-0">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {client.business ?? "—"}
                 </TableCell>

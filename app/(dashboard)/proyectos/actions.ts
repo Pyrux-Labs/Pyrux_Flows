@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { projectPayloadSchema } from "@/lib/validations/project";
-import type { ProjectStatus, AssignedTo } from "@/lib/types/database.types";
+import type { ProjectStatus } from "@/lib/types/database.types";
 
 export interface ProjectPayload {
   name: string;
@@ -15,7 +15,6 @@ export interface ProjectPayload {
   budget?: number | null;
   paid: boolean;
   notes?: string | null;
-  assigned_to?: AssignedTo | null;
 }
 
 export async function createProject(payload: ProjectPayload) {

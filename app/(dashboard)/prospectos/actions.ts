@@ -18,7 +18,6 @@ export interface ProspectPayload {
   source?: ProspectSource | null;
   status: ProspectStatus;
   notes?: string | null;
-  assigned_to?: "juanma" | "gino" | null;
   last_contact?: string | null;
 }
 
