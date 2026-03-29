@@ -105,6 +105,7 @@ Los datos actuales son de prueba y hay columnas/migraciones acumuladas.
 - **Estado:** hacer cuando estén listos para usar la app en producción real
 - **Plan:** reescribir `schema.sql` con todo integrado (sin migraciones separadas), correr en Supabase fresh, cargar datos reales
 - **Nota:** los archivos de migración (`migrations/`) se pueden borrar una vez que el schema final esté consolidado en `schema.sql`
+- **Motivación principal:** hoy `client_name` en proyectos es texto libre — si se escribe distinto en cada lugar pierde consistencia. El reset es el momento para introducir una tabla `clients` con FK en proyectos, ingresos y gastos, de modo que el nombre viva en un solo lugar y no se repita ni pueda divergir
 
 ### Integración con Mercado Pago (cuenta empresarial)
 Sincronizar automáticamente movimientos de MP (cobros y pagos) con gastos e ingresos de la app.
