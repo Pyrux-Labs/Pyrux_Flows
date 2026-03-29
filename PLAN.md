@@ -81,6 +81,19 @@ Desde cualquier módulo, `Cmd+N` abre el sheet de creación. Complementa el `Cmd
 Al eliminar un item, en vez de solo confirmar, mostrar un toast de Sonner (ya instalado) con botón "Deshacer" activo durante 5 segundos antes de que el borrado se ejecute definitivamente.
 - **Estado:** listo para implementar, requiere cambiar el flujo de delete para que sea diferido
 
+### Componentes shadcn faltantes
+Instalar cuando se necesiten, no antes:
+- **`Tooltip`** — para mostrar texto completo (email, teléfono, notas largas) al hacer hover en tablas
+- **`Popover`** — necesario para el cambio de estado rápido sin abrir sheet
+- **`Scroll Area`** — para sheets con mucho contenido en pantallas chicas
+
+### Calendario compartido con notificaciones por email
+Calendario interno para Juanma y Gino con eventos, reuniones y deadlines. Envía mail cuando hay un evento próximo.
+- **Estado:** idea confirmada, construcción pesada pero tienen código reutilizable de otra app
+- **Acción previa:** traer el código existente y evaluar qué hay que adaptar
+- **Stack posible:** shadcn `Calendar` + tabla `events` en Supabase + Resend o Nodemailer para los mails + pg_cron para disparar notificaciones
+- **Nota:** ya tienen pg_cron activo por los gastos recurrentes, el mismo mecanismo sirve para disparar recordatorios
+
 ### Tipo de cambio automático
 Reemplazar el campo manual de USD/ARS en Configuración por una API pública (ej. dólar blue/oficial).
 - **Estado:** listo para implementar cuando quieran
