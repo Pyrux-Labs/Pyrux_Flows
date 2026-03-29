@@ -19,12 +19,13 @@ ON CONFLICT (key) DO UPDATE
 
 -- ─── PROSPECTS ───────────────────────────────────────────────
 -- MedMind is a closed (won) prospect; explicit UUID so projects can ref it.
+-- name = contact person when known, otherwise the business name.
 -- 30 Rosario prospects from "📋 Prospectos Rosario" sheet:
 --   "Sin contactar" → nuevo | "Pendiente" → contactado (15 each)
 
 INSERT INTO prospects (
   id, name, business, sector, email, phone,
-  source, status, notes, assigned_to, last_contact
+  source, status, notes, last_contact
 ) VALUES (
   'aaaaaaaa-0000-0000-0000-000000000001',
   'Guillermina Bassi',
@@ -35,7 +36,6 @@ INSERT INTO prospects (
   'word_of_mouth',
   'cerrado',
   'Primer cliente Pyrux. Sin contrato formal — formalizar urgente. Débito automático MP $20/mes.',
-  'gino',
   '2026-03-05'
 );
 
@@ -81,7 +81,7 @@ INSERT INTO prospects (name, sector, source, status, notes) VALUES
 
 INSERT INTO projects (
   id, name, client_name, prospect_id,
-  status, start_date, budget, paid, notes, assigned_to
+  status, start_date, budget, paid, notes
 ) VALUES
   (
     'bbbbbbbb-0000-0000-0000-000000000001',
@@ -89,11 +89,10 @@ INSERT INTO projects (
     'MedMind',
     'aaaaaaaa-0000-0000-0000-000000000001',
     'completado',
-    '2026-03-05',     -- fecha inicio mantenimiento (fecha exacta dev a completar)
+    '2026-03-05',
     300,
     true,
-    'Primer proyecto Pyrux. App web personalizada. En producción: medmind.com.ar. Mantenimiento activo $20/mes. Sin contrato formal — formalizar urgente.',
-    'ambos'
+    'Primer proyecto Pyrux. App web personalizada. En producción: medmind.com.ar. Mantenimiento activo $20/mes. Sin contrato formal — formalizar urgente.'
   ),
   (
     'bbbbbbbb-0000-0000-0000-000000000002',
@@ -104,8 +103,7 @@ INSERT INTO projects (
     NULL,
     NULL,
     false,
-    'Web institucional propia. En producción: pyrux.com.ar. Goal Planner y MedMind como proyectos showcase.',
-    'ambos'
+    'Web institucional propia. En producción: pyrux.com.ar. Goal Planner y MedMind como proyectos showcase.'
   ),
   (
     'bbbbbbbb-0000-0000-0000-000000000003',
@@ -116,15 +114,11 @@ INSERT INTO projects (
     NULL,
     NULL,
     false,
-    'Producto interno Pyrux. goalplanner.com.ar. En desarrollo. Limpiar estructura de carpetas pendiente.',
-    'ambos'
+    'Producto interno Pyrux. goalplanner.com.ar. En desarrollo. Limpiar estructura de carpetas pendiente.'
   );
 
 
 -- ─── INCOME ──────────────────────────────────────────────────
--- Two records:
---   1. One-time development payment for MedMind (year 2025, exact date unknown → 2025-12-01)
---   2. First maintenance payment March 2026
 
 INSERT INTO income (
   project_id, description, amount, currency,
@@ -135,7 +129,7 @@ INSERT INTO income (
     'Desarrollo MedMind — pago único (app web personalizada)',
     300,
     'USD',
-    '2025-12-01',   -- año 2025 confirmado; día exacto a completar
+    '2025-12-01',
     'proyecto',
     false,
     true
@@ -153,11 +147,10 @@ INSERT INTO income (
 
 
 -- ─── EXPENSES ────────────────────────────────────────────────
--- Recurring tools (March 2026) + three annual domain renewals (ARS)
 
 INSERT INTO expenses (
   description, amount, currency,
-  date, category, recurrent, notes
+  date, category, recurrent, frequency, notes
 ) VALUES
   (
     'Google Workspace (2 usuarios)',
@@ -166,6 +159,7 @@ INSERT INTO expenses (
     '2026-03-01',
     'herramientas',
     true,
+    'mensual',
     '$4.90 × 2 usuarios. Facturación mensual.'
   ),
   (
@@ -175,45 +169,46 @@ INSERT INTO expenses (
     '2026-03-01',
     'herramientas',
     true,
+    'mensual',
     'Una cuenta compartida Gino + Juan. Facturación mensual.'
   ),
   (
     'Dominio goalplanner.com.ar',
     8500,
     'ARS',
-    '2026-02-12',   -- último pago anual; próximo vencimiento 2027-02-12
+    '2026-02-12',
     'hosting',
     false,
+    null,
     'Renovación anual. Próximo vencimiento: 2027-02-12.'
   ),
   (
     'Dominio pyrux.com.ar',
     8500,
     'ARS',
-    '2026-02-25',   -- próximo vencimiento 2027-02-25
+    '2026-02-25',
     'hosting',
     false,
+    null,
     'Renovación anual. Próximo vencimiento: 2027-02-25.'
   ),
   (
     'Dominio medmind.com.ar',
     8500,
     'ARS',
-    '2026-03-03',   -- próximo vencimiento 2027-03-03
+    '2026-03-03',
     'hosting',
     false,
+    null,
     'Renovación anual. Próximo vencimiento: 2027-03-03.'
   );
 
 
 -- ─── SERVICES ────────────────────────────────────────────────
--- From "📦 Tarifario" sheet — development plans + maintenance plans.
--- Prices are lista (sin descuento de lanzamiento).
 
 INSERT INTO services (
   name, description, price, currency, unit, category, active
 ) VALUES
-  -- ── Planes web estándar ───────────────────────────────────
   (
     'Growth',
     'Sitio web estándar sin CMS. Entrega ~2 semanas. Soporte 48hs. Backup mensual.',
@@ -229,7 +224,6 @@ INSERT INTO services (
     'Sitio web premium con CMS. Entrega 4+ semanas. Soporte 24hs. Actualizaciones continuas. Hasta 4hs soporte/mes. Precio desde $800.',
     800, 'USD', 'proyecto', 'web', true
   ),
-  -- ── Planes e-commerce ────────────────────────────────────
   (
     'E-Commerce Básico',
     'Tienda online básica con CMS. Entrega ~4 semanas. Soporte 48hs.',
@@ -245,13 +239,11 @@ INSERT INTO services (
     'Tienda online enterprise con CMS. Precio, entrega y SLA a convenir.',
     NULL, 'USD', 'proyecto', 'web', true
   ),
-  -- ── Personalizado ────────────────────────────────────────
   (
     'Personalizado',
     'Sistemas a medida, integraciones IA, plataformas web complejas. Precio y plazos a definir.',
     NULL, 'USD', 'proyecto', 'automatizacion', true
   ),
-  -- ── Planes de mantenimiento ───────────────────────────────
   (
     'Mantenimiento Growth',
     'Hosting + SSL + monitoreo 24/7 + backup mensual + cambios menores de texto/imagen. Soporte canal directo 48hs.',

@@ -10,7 +10,6 @@ export const projectPayloadSchema = z.object({
   budget: z.number().nonnegative().nullable().optional(),
   paid: z.boolean(),
   notes: z.string().nullable().optional(),
-  assigned_to: z.enum(["juanma", "gino", "ambos"]).nullable().optional(),
 });
 
 export type ProjectPayloadSchema = z.infer<typeof projectPayloadSchema>;

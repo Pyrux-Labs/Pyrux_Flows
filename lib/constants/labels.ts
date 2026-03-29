@@ -85,12 +85,6 @@ export const PROJECT_STATUS_CONFIG: Record<
   },
 };
 
-export const ASSIGNED_LABELS: Record<string, string> = {
-  juanma: "Juanma",
-  gino: "Gino",
-  ambos: "Ambos",
-};
-
 export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
   herramientas: "Herramientas",
   hosting: "Hosting",

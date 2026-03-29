@@ -19,6 +19,7 @@ export const expensePayloadSchema = z.object({
   recurrent: z.boolean(),
   frequency: z.enum(["semanal", "mensual", "anual"]).nullable().optional(),
   notes: z.string().nullable().optional(),
+  exchange_rate: z.number().positive().nullable().optional(),
 });
 
 export type ExpensePayloadSchema = z.infer<typeof expensePayloadSchema>;

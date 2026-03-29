@@ -12,6 +12,7 @@ export const incomePayloadSchema = z.object({
     .optional(),
   invoice_sent: z.boolean(),
   paid: z.boolean(),
+  exchange_rate: z.number().positive().nullable().optional(),
 });
 
 export type IncomePayloadSchema = z.infer<typeof incomePayloadSchema>;

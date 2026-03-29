@@ -31,7 +31,6 @@ export const prospectPayloadSchema = z.object({
     .optional(),
   status: z.enum(["nuevo", "contactado", "en_negociacion", "cerrado", "perdido"]),
   notes: z.string().nullable().optional(),
-  assigned_to: z.enum(["juanma", "gino"]).nullable().optional(),
   last_contact: z.string().nullable().optional(),
 });
 

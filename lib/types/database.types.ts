@@ -33,8 +33,6 @@ export type ProspectSource =
 
 export type ProjectStatus = "activo" | "pausado" | "completado" | "cancelado";
 
-export type AssignedTo = "juanma" | "gino" | "ambos";
-
 export type Currency = "ARS" | "USD";
 
 export type IncomeCategory =
@@ -73,7 +71,6 @@ export interface Prospect {
   source: ProspectSource | null;
   status: ProspectStatus;
   notes: string | null;
-  assigned_to: "juanma" | "gino" | null;
   last_contact: string | null;
 }
 
@@ -89,7 +86,6 @@ export interface Project {
   budget: number | null;
   paid: boolean;
   notes: string | null;
-  assigned_to: AssignedTo | null;
 }
 
 export interface Income {
@@ -103,6 +99,7 @@ export interface Income {
   category: IncomeCategory | null;
   invoice_sent: boolean;
   paid: boolean;
+  exchange_rate: number | null;
 }
 
 export interface Expense {
@@ -117,6 +114,7 @@ export interface Expense {
   frequency: ExpenseFrequency | null;
   generated_from_id: string | null;
   notes: string | null;
+  exchange_rate: number | null;
 }
 
 export interface Service {
