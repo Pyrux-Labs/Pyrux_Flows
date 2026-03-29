@@ -81,6 +81,10 @@ Desde cualquier módulo, `Cmd+N` abre el sheet de creación. Complementa el `Cmd
 Al eliminar un item, en vez de solo confirmar, mostrar un toast de Sonner (ya instalado) con botón "Deshacer" activo durante 5 segundos antes de que el borrado se ejecute definitivamente.
 - **Estado:** listo para implementar, requiere cambiar el flujo de delete para que sea diferido
 
+### Badge de alertas en el sidebar (opcional)
+Un numerito en el ítem "Finanzas" del sidebar mostrando cuántos cobros están pendientes (factura enviada, sin cobrar). Visible desde cualquier pantalla sin entrar al dashboard.
+- **Estado:** opcional, implementar si el widget del dashboard no alcanza en el día a día
+
 ### Componentes shadcn faltantes
 Instalar cuando se necesiten, no antes:
 - **`Tooltip`** — para mostrar texto completo (email, teléfono, notas largas) al hacer hover en tablas
