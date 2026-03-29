@@ -39,6 +39,32 @@
 
 ## Ideas pendientes
 
+### Módulo de Clientes (prospectos cerrados/ganados)
+Cuando un prospecto pasa a estado "cerrado" (ganado), pasa a ser cliente y aparece en una sección propia.
+
+**Contexto:**
+- "Cerrado" = ganado, hay un proyecto en curso
+- Los proyectos ya tienen `prospect_id` (FK opcional a prospectos) y `client_name` (texto libre)
+- Hoy no hay relación formal entre un cliente y sus proyectos/pagos en la DB
+
+**Decisión arquitectónica a resolver antes de implementar:**
+Hay dos caminos y tienen trade-offs distintos:
+
+- **Opción A — Vista filtrada (sin cambios en DB):** "Clientes" es simplemente una vista de prospectos con `status = cerrado`. Rápido de implementar, cero riesgo de romper datos. Limitación: los proyectos siguen usando `client_name` como texto, sin FK real al cliente.
+- **Opción B — Tabla `clients` separada (cambio de DB):** Al cerrar un prospecto se crea un registro en `clients` con FK. Los proyectos pasan a tener `client_id` en vez de `client_name`. Más trabajo, pero habilita reportes por cliente (qué proyectos tiene, cuánto paga, historial).
+
+**Recomendación:** Opción B cuando hagan el reset de DB desde cero (que ya está planeado). Implementar Opción A antes como solución rápida.
+
+**Comportamiento esperado:**
+- Prospecto en estado "cerrado" desaparece de la lista de prospectos
+- Aparece en la nueva sección "Clientes" con nombre, empresa, email, teléfono
+- Se ven los proyectos asociados (usando `prospect_id` existente)
+- El módulo de Clientes queda en el sidebar
+
+**Estado:** listo para implementar mañana con Opción A primero
+
+---
+
 ### Tipo de cambio automático
 Reemplazar el campo manual de USD/ARS en Configuración por una API pública (ej. dólar blue/oficial).
 - **Estado:** listo para implementar cuando quieran
