@@ -65,6 +65,22 @@ Hay dos caminos y tienen trade-offs distintos:
 
 ---
 
+### UX — Click en fila para abrir el sheet
+Hoy solo el ícono del lápiz abre el sheet. Click en cualquier celda de la fila debería abrirlo.
+- **Estado:** listo para implementar, aplica a prospectos, proyectos, gastos, finanzas y tarifas
+
+### UX — Cambio de estado rápido sin abrir el sheet
+Click en el badge de estado de un prospecto o proyecto lo cambia directo con un dropdown, sin abrir el sheet completo.
+- **Estado:** listo para implementar
+
+### UX — Cmd+N para crear nuevo
+Desde cualquier módulo, `Cmd+N` abre el sheet de creación. Complementa el `Cmd+K` ya existente.
+- **Estado:** listo para implementar, reutiliza el mismo patrón del hook `useCommandPalette`
+
+### UX — Toast con "deshacer" al eliminar
+Al eliminar un item, en vez de solo confirmar, mostrar un toast de Sonner (ya instalado) con botón "Deshacer" activo durante 5 segundos antes de que el borrado se ejecute definitivamente.
+- **Estado:** listo para implementar, requiere cambiar el flujo de delete para que sea diferido
+
 ### Tipo de cambio automático
 Reemplazar el campo manual de USD/ARS en Configuración por una API pública (ej. dólar blue/oficial).
 - **Estado:** listo para implementar cuando quieran
