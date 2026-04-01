@@ -12,58 +12,29 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
-import {
-  useCreateIncome,
-  useUpdateIncome,
-  useDeleteIncome,
-} from "@/hooks/use-income";
+import { useEnrichMovement } from "@/hooks/use-movements";
 import { useProjects } from "@/hooks/use-projects";
-import { todayISO } from "@/lib/utils";
-import { INCOME_CATEGORY_LABELS } from "@/lib/constants/labels";
-import type { Income } from "@/lib/types/database.types";
+import { MOVEMENT_CREDIT_CATEGORY_LABELS } from "@/lib/constants/labels";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import type { Movement } from "@/lib/types/database.types";
 
 const schema = z.object({
-  description: z.string().min(1, "La descripción es requerida"),
-  amountInput: z
-    .string()
-    .min(1, "El monto es requerido")
-    .refine(
-      (v) => !isNaN(Number(v)) && Number(v) > 0,
-      "El monto debe ser un número positivo",
-    ),
-  currency: z.enum(["ARS", "USD"]),
-  date: z.string().min(1, "La fecha es requerida"),
-  project_id: z.string().optional().nullable(),
-  category: z
-    .enum(["proyecto", "mantenimiento", "consultoria", "otro"])
-    .optional()
-    .nullable(),
-  invoice_sent: z.boolean(),
-  paid: z.boolean(),
+  project_id: z.string().uuid().nullable().optional(),
+  category: z.string().nullable().optional(),
+  is_recurring: z.boolean(),
+  notes: z.string().nullable().optional(),
+  save_as_rule: z.boolean(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -71,110 +42,64 @@ type FormValues = z.infer<typeof schema>;
 interface IncomeSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  income?: Income | null;
+  movement: Movement | null;
 }
 
-
-export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
-  const isEditing = !!income;
-  const createIncome = useCreateIncome();
-  const updateIncome = useUpdateIncome();
-  const deleteIncome = useDeleteIncome();
-  const { handleDelete } = useDeleteWithUndo({
-    mutateAsync: deleteIncome.mutateAsync,
-    baseKey: ["income"],
-  });
+export function IncomeSheet({ open, onOpenChange, movement }: IncomeSheetProps) {
+  const enrich = useEnrichMovement();
   const { data: projects = [] } = useProjects();
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors, isDirty },
-  } = useForm<FormValues>({
+  const { handleSubmit, setValue, watch, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      description: "",
-      amountInput: "",
-      currency: "ARS",
-      date: todayISO(),
       project_id: null,
       category: null,
-      invoice_sent: false,
-      paid: false,
+      is_recurring: false,
+      notes: "",
+      save_as_rule: false,
     },
   });
 
   useEffect(() => {
-    if (open) {
-      reset(
-        income
-          ? {
-              description: income.description,
-              amountInput: String(income.amount),
-              currency: income.currency,
-              date: income.date,
-              project_id: income.project_id ?? null,
-              category: income.category ?? null,
-              invoice_sent: income.invoice_sent,
-              paid: income.paid,
-            }
-          : {
-              description: "",
-              amountInput: "",
-              currency: "ARS",
-              date: todayISO(),
-              project_id: null,
-              category: null,
-              invoice_sent: false,
-              paid: false,
-            },
-      );
+    if (open && movement) {
+      reset({
+        project_id: movement.project_id ?? null,
+        category: movement.category ?? null,
+        is_recurring: movement.is_recurring,
+        notes: movement.notes ?? "",
+        save_as_rule: false,
+      });
     }
-  }, [open, income, reset]);
-
-  const isPending = createIncome.isPending || updateIncome.isPending;
-  const { handleOpenChange, warningOpen, confirmDiscard, cancelDiscard } =
-    useUnsavedChanges(isDirty, onOpenChange);
-  const currency = watch("currency");
-  const invoiceSent = watch("invoice_sent");
-  const paid = watch("paid");
+  }, [open, movement, reset]);
 
   async function onSubmit(values: FormValues) {
-    const payload = {
-      description: values.description,
-      amount: parseFloat(values.amountInput),
-      currency: values.currency,
-      date: values.date,
-      project_id: values.project_id || null,
-      category: values.category ?? null,
-      invoice_sent: values.invoice_sent,
-      paid: values.paid,
-    };
-
+    if (!movement) return;
     try {
-      if (isEditing && income) {
-        await updateIncome.mutateAsync({ id: income.id, payload });
-        toast.success("Ingreso actualizado");
-      } else {
-        await createIncome.mutateAsync(payload);
-        toast.success("Ingreso registrado");
-      }
+      await enrich.mutateAsync({ id: movement.id, payload: values });
+      toast.success("Movimiento actualizado");
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar el ingreso");
+      toast.error(err instanceof Error ? err.message : "Error al guardar");
     }
   }
 
   return (
-    <>
-    <Sheet open={open} onOpenChange={handleOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0">
         <SheetHeader className="pb-4 border-b border-border">
-          <SheetTitle>{isEditing ? "Editar ingreso" : "Nuevo ingreso"}</SheetTitle>
+          <SheetTitle>Clasificar ingreso</SheetTitle>
         </SheetHeader>
+
+        {movement && (
+          <div className="py-3 px-1 border-b border-border space-y-0.5">
+            <p className="text-sm font-medium text-foreground">
+              {movement.description ?? movement.counterpart_name ?? "Sin descripción"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(movement.amount, movement.currency)} · {formatDate(movement.date)}
+            </p>
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmit(onSubmit)}
@@ -182,64 +107,7 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
         >
           <div className="flex-1 overflow-y-auto py-4 space-y-4 px-1">
             <div className="space-y-2">
-              <Label htmlFor="description">Descripción *</Label>
-              <Input
-                id="description"
-                {...register("description")}
-                placeholder="Ej: Sitio web cliente ABC"
-              />
-              {errors.description && (
-                <p className="text-xs text-destructive">
-                  {errors.description.message}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="amountInput">Monto *</Label>
-                <Input
-                  id="amountInput"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...register("amountInput")}
-                  placeholder="0"
-                />
-                {errors.amountInput && (
-                  <p className="text-xs text-destructive">
-                    {errors.amountInput.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Moneda</Label>
-                <Select
-                  value={currency}
-                  onValueChange={(v) => setValue("currency", v as "ARS" | "USD")}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ARS">ARS ($)</SelectItem>
-                    <SelectItem value="USD">USD (U$D)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="date">Fecha *</Label>
-              <Input id="date" type="date" {...register("date")} />
-              {errors.date && (
-                <p className="text-xs text-destructive">{errors.date.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Proyecto vinculado</Label>
+              <Label>Proyecto</Label>
               <Select
                 value={watch("project_id") ?? "_none"}
                 onValueChange={(v) =>
@@ -247,13 +115,14 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Ninguno" />
+                  <SelectValue placeholder="Sin proyecto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">Ninguno</SelectItem>
+                  <SelectItem value="_none">Sin proyecto</SelectItem>
                   {projects.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} — {p.client_name}
+                      {p.name}
+                      {p.client?.name ? ` — ${p.client.name}` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -265,18 +134,15 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
               <Select
                 value={watch("category") ?? "_none"}
                 onValueChange={(v) =>
-                  setValue(
-                    "category",
-                    v === "_none" ? null : (v as FormValues["category"]),
-                  )
+                  setValue("category", v === "_none" ? null : v)
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccioná categoría" />
+                  <SelectValue placeholder="Sin categoría" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Sin categoría</SelectItem>
-                  {Object.entries(INCOME_CATEGORY_LABELS).map(([value, label]) => (
+                  {Object.entries(MOVEMENT_CREDIT_CATEGORY_LABELS).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -286,75 +152,58 @@ export function IncomeSheet({ open, onOpenChange, income }: IncomeSheetProps) {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="invoice_sent">Factura enviada</Label>
+              <div>
+                <Label>Recurrente</Label>
+                <p className="text-xs text-muted-foreground">
+                  Se incluye en el forecast mensual
+                </p>
+              </div>
               <Switch
-                id="invoice_sent"
-                checked={invoiceSent}
-                onCheckedChange={(v) => setValue("invoice_sent", v)}
+                checked={watch("is_recurring")}
+                onCheckedChange={(v) => setValue("is_recurring", v)}
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="paid">Cobrado</Label>
-              <Switch
-                id="paid"
-                checked={paid}
-                onCheckedChange={(v) => setValue("paid", v)}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notas</Label>
+              <textarea
+                id="notes"
+                value={watch("notes") ?? ""}
+                onChange={(e) => setValue("notes", e.target.value)}
+                placeholder="Notas opcionales..."
+                rows={2}
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
               />
             </div>
+
+            {movement?.counterpart_id && (
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <Label>Recordar asignación</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Aplicar automáticamente a futuros ingresos de este origen
+                  </p>
+                </div>
+                <Switch
+                  checked={watch("save_as_rule")}
+                  onCheckedChange={(v) => setValue("save_as_rule", v)}
+                />
+              </div>
+            )}
           </div>
 
-          <SheetFooter className="pt-4 border-t border-border flex gap-2">
-            {isEditing && income && (
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  handleDelete({ id: income.id, label: income.description });
-                }}
-              >
-                Eliminar
-              </Button>
-            )}
+          <SheetFooter className="pt-4 border-t border-border">
             <div className="flex gap-2 ml-auto">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isEditing ? (
-                  "Guardar cambios"
-                ) : (
-                  "Agregar ingreso"
-                )}
+              <Button type="submit" disabled={enrich.isPending}>
+                {enrich.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar"}
               </Button>
             </div>
           </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>
-
-    <AlertDialog open={warningOpen} onOpenChange={cancelDiscard}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Tenés cambios sin guardar. Si cerrás ahora se perderán.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={cancelDiscard}>Seguir editando</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDiscard}>Descartar</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-    </>
   );
 }

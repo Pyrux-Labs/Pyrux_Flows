@@ -12,18 +12,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Pencil, Receipt, RefreshCw } from "lucide-react";
+import { Pencil, Receipt, RefreshCw, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { EXPENSE_CATEGORY_LABELS, EXPENSE_FREQUENCY_LABELS } from "@/lib/constants/labels";
-import type { Expense } from "@/lib/types/database.types";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/constants/labels";
+import type { Movement, ProjectWithClient } from "@/lib/types/database.types";
 
 interface ExpenseTableProps {
-  expenses: Expense[];
+  expenses: Movement[];
+  projects: ProjectWithClient[];
   isLoading: boolean;
-  onEdit: (expense: Expense) => void;
+  onEdit: (movement: Movement) => void;
 }
 
-export function ExpenseTable({ expenses, isLoading, onEdit }: ExpenseTableProps) {
+export function ExpenseTable({ expenses, projects, isLoading, onEdit }: ExpenseTableProps) {
+  const projectMap = Object.fromEntries(projects.map((p) => [p.id, p]));
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -39,7 +42,7 @@ export function ExpenseTable({ expenses, isLoading, onEdit }: ExpenseTableProps)
       <EmptyState
         icon={Receipt}
         title="Sin gastos este mes"
-        description="Registrá un gasto para empezar a ver el resumen."
+        description="Los gastos se sincronizan automáticamente desde Mercado Pago."
       />
     );
   }
@@ -50,60 +53,69 @@ export function ExpenseTable({ expenses, isLoading, onEdit }: ExpenseTableProps)
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Descripción</TableHead>
+            <TableHead>Proyecto</TableHead>
             <TableHead className="text-right">Monto</TableHead>
             <TableHead>Fecha</TableHead>
             <TableHead>Categoría</TableHead>
-            <TableHead>Recurrente</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {expenses.map((expense) => (
-            <TableRow key={expense.id} className="hover:bg-secondary/50">
-              <TableCell className="font-medium">{expense.description}</TableCell>
-              <TableCell className="text-right font-mono text-sm">
-                {formatCurrency(expense.amount, expense.currency)}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {formatDate(expense.date)}
-              </TableCell>
-              <TableCell>
-                {expense.category ? (
-                  <Badge variant="secondary" className="text-xs">
-                    {EXPENSE_CATEGORY_LABELS[expense.category] ?? expense.category}
-                  </Badge>
-                ) : (
-                  <span className="text-muted-foreground text-xs">—</span>
-                )}
-              </TableCell>
-              <TableCell>
-                {expense.recurrent && expense.frequency ? (
+          {expenses.map((entry) => {
+            const project = entry.project_id ? projectMap[entry.project_id] : null;
+            const isUnclassified = !entry.category && !entry.project_id;
+            return (
+              <TableRow key={entry.id} className="hover:bg-secondary/50">
+                <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5">
-                    <RefreshCw className="h-3 w-3 text-primary shrink-0" />
-                    <span className="text-xs text-primary">
-                      {EXPENSE_FREQUENCY_LABELS[expense.frequency]}
+                    {isUnclassified && (
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    )}
+                    <span className="truncate max-w-[200px]">
+                      {entry.description ?? entry.counterpart_name ?? "—"}
                     </span>
                   </div>
-                ) : expense.generated_from_id ? (
-                  <span className="text-xs text-muted-foreground">Auto</span>
-                ) : expense.recurrent ? (
-                  <RefreshCw className="h-3.5 w-3.5 text-primary" />
-                ) : (
-                  <span className="text-muted-foreground text-xs">—</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onEdit(expense)}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {project ? (
+                    <span className="text-foreground">{project.name}</span>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
+                  {formatCurrency(entry.amount, entry.currency)}
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {formatDate(entry.date)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1.5">
+                    {entry.category ? (
+                      <Badge variant="secondary" className="text-xs">
+                        {EXPENSE_CATEGORY_LABELS[entry.category] ?? entry.category}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                    {entry.is_recurring && (
+                      <RefreshCw className="h-3 w-3 text-primary shrink-0" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => onEdit(entry)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

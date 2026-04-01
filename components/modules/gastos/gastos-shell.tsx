@@ -4,22 +4,27 @@ import { useState } from "react";
 import { startOfMonth } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { MonthNav } from "@/components/shared/month-nav";
 import { ExpenseTable } from "./expense-table";
 import { ExpenseSummary } from "./expense-summary";
 import { ExpenseSheet } from "./expense-sheet";
 import { useExpenses } from "@/hooks/use-expenses";
+import { useProjects } from "@/hooks/use-projects";
+import { useSyncMovements } from "@/hooks/use-movements";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/lib/utils";
-import type { Expense } from "@/lib/types/database.types";
+import { toast } from "sonner";
+import type { Movement } from "@/lib/types/database.types";
 
 export function GastosShell() {
   const [month, setMonth] = useState<Date>(() => startOfMonth(new Date()));
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
 
   const { data: expenses = [], isLoading } = useExpenses(month);
+  const { data: projects = [] } = useProjects();
+  const sync = useSyncMovements();
   const { visibleItems: visibleExpenses, hasMore, remaining, loadMore } = usePagination(expenses);
 
   const totalARS = expenses
@@ -29,19 +34,18 @@ export function GastosShell() {
     .filter((e) => e.currency === "USD")
     .reduce((sum, e) => sum + e.amount, 0);
 
-  function handleEdit(expense: Expense) {
-    setEditingExpense(expense);
+  function handleEdit(movement: Movement) {
+    setEditingMovement(movement);
     setSheetOpen(true);
   }
 
-  function handleAdd() {
-    setEditingExpense(null);
-    setSheetOpen(true);
-  }
-
-  function handleSheetOpenChange(open: boolean) {
-    setSheetOpen(open);
-    if (!open) setEditingExpense(null);
+  async function handleSync() {
+    try {
+      const result = await sync.mutateAsync();
+      toast.success(`Sincronizado: ${result.synced} movimiento${result.synced !== 1 ? "s" : ""}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al sincronizar");
+    }
   }
 
   return (
@@ -51,16 +55,21 @@ export function GastosShell() {
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Gastos</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Registro de egresos del estudio
+            Egresos sincronizados desde Mercado Pago
           </p>
         </div>
-        <Button onClick={handleAdd} size="sm">
-          <Plus className="h-4 w-4 mr-1.5" />
-          Nuevo gasto
+        <Button
+          onClick={handleSync}
+          size="sm"
+          variant="outline"
+          disabled={sync.isPending}
+        >
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${sync.isPending ? "animate-spin" : ""}`} />
+          Sincronizar
         </Button>
       </div>
 
-      {/* Month nav + monthly totals */}
+      {/* Month nav + totals */}
       <div className="flex flex-wrap items-center gap-4">
         <MonthNav month={month} onChange={setMonth} />
         {!isLoading && expenses.length > 0 && (
@@ -93,6 +102,7 @@ export function GastosShell() {
         <TabsContent value="tabla" className="space-y-3">
           <ExpenseTable
             expenses={visibleExpenses}
+            projects={projects}
             isLoading={isLoading}
             onEdit={handleEdit}
           />
@@ -112,8 +122,11 @@ export function GastosShell() {
 
       <ExpenseSheet
         open={sheetOpen}
-        onOpenChange={handleSheetOpenChange}
-        expense={editingExpense}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setEditingMovement(null);
+        }}
+        movement={editingMovement}
       />
     </div>
   );

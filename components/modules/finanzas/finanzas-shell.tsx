@@ -4,24 +4,27 @@ import { useState } from "react";
 import { startOfMonth } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { MonthNav } from "@/components/shared/month-nav";
 import { IncomeTable } from "./income-table";
 import { IncomeSummary } from "./income-summary";
 import { IncomeSheet } from "./income-sheet";
 import { useIncome } from "@/hooks/use-income";
 import { useProjects } from "@/hooks/use-projects";
+import { useSyncMovements } from "@/hooks/use-movements";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/lib/utils";
-import type { Income } from "@/lib/types/database.types";
+import { toast } from "sonner";
+import type { Movement } from "@/lib/types/database.types";
 
 export function FinanzasShell() {
   const [month, setMonth] = useState<Date>(() => startOfMonth(new Date()));
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
+  const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
 
   const { data: income = [], isLoading } = useIncome(month);
   const { data: projects = [] } = useProjects();
+  const sync = useSyncMovements();
   const { visibleItems: visibleIncome, hasMore, remaining, loadMore } = usePagination(income);
 
   const totalARS = income
@@ -31,19 +34,18 @@ export function FinanzasShell() {
     .filter((e) => e.currency === "USD")
     .reduce((sum, e) => sum + e.amount, 0);
 
-  function handleEdit(entry: Income) {
-    setEditingIncome(entry);
+  function handleEdit(movement: Movement) {
+    setEditingMovement(movement);
     setSheetOpen(true);
   }
 
-  function handleAdd() {
-    setEditingIncome(null);
-    setSheetOpen(true);
-  }
-
-  function handleSheetOpenChange(open: boolean) {
-    setSheetOpen(open);
-    if (!open) setEditingIncome(null);
+  async function handleSync() {
+    try {
+      const result = await sync.mutateAsync();
+      toast.success(`Sincronizado: ${result.synced} movimiento${result.synced !== 1 ? "s" : ""}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al sincronizar");
+    }
   }
 
   return (
@@ -53,12 +55,17 @@ export function FinanzasShell() {
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Finanzas</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Registro de ingresos del estudio
+            Ingresos sincronizados desde Mercado Pago
           </p>
         </div>
-        <Button onClick={handleAdd} size="sm">
-          <Plus className="h-4 w-4 mr-1.5" />
-          Nuevo ingreso
+        <Button
+          onClick={handleSync}
+          size="sm"
+          variant="outline"
+          disabled={sync.isPending}
+        >
+          <RefreshCw className={`h-4 w-4 mr-1.5 ${sync.isPending ? "animate-spin" : ""}`} />
+          Sincronizar
         </Button>
       </div>
 
@@ -115,8 +122,11 @@ export function FinanzasShell() {
 
       <IncomeSheet
         open={sheetOpen}
-        onOpenChange={handleSheetOpenChange}
-        income={editingIncome}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setEditingMovement(null);
+        }}
+        movement={editingMovement}
       />
     </div>
   );

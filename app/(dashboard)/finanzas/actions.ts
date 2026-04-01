@@ -2,52 +2,52 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { incomePayloadSchema } from "@/lib/validations/income";
-import type { IncomeCategory, Currency } from "@/lib/types/database.types";
+import { movementEnrichSchema } from "@/lib/validations/movement-enrich";
 
-export interface IncomePayload {
-  description: string;
-  amount: number;
-  currency: Currency;
-  date: string;
+export interface EnrichPayload {
   project_id?: string | null;
-  category?: IncomeCategory | null;
-  invoice_sent: boolean;
-  paid: boolean;
+  category?: string | null;
+  is_recurring?: boolean;
+  notes?: string | null;
+  save_as_rule?: boolean;
 }
 
-async function fetchBlueVenta(): Promise<number | null> {
-  try {
-    const res = await fetch("https://dolarapi.com/v1/dolares/blue", { cache: "no-store" });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.venta ?? null;
-  } catch {
-    return null;
+export async function enrichMovement(id: string, payload: EnrichPayload) {
+  const { save_as_rule, ...rest } = movementEnrichSchema.parse(payload);
+  const supabase = await createClient();
+
+  const { data: movement, error: fetchError } = await supabase
+    .from("movements")
+    .select("counterpart_id, counterpart_name, type")
+    .eq("id", id)
+    .single();
+  if (fetchError) throw new Error(fetchError.message);
+
+  const { error } = await supabase.from("movements").update(rest).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  if (save_as_rule && movement?.counterpart_id) {
+    await supabase.from("mp_rules").upsert(
+      {
+        counterpart_id: movement.counterpart_id,
+        counterpart_name: movement.counterpart_name,
+        type: movement.type,
+        project_id: rest.project_id ?? null,
+        category: rest.category ?? null,
+        is_recurring: rest.is_recurring ?? false,
+      },
+      { onConflict: "counterpart_id,type" },
+    );
   }
+
+  revalidatePath("/finanzas");
+  revalidatePath("/gastos");
 }
 
-export async function createIncome(payload: IncomePayload) {
-  const exchange_rate = await fetchBlueVenta();
-  const validated = incomePayloadSchema.parse({ ...payload, exchange_rate });
-  const supabase = await createClient();
-  const { error } = await supabase.from("income").insert(validated);
-  if (error) throw new Error(error.message);
+export async function syncMovements() {
+  const { runMercadoPagoSync } = await import("@/lib/sync/sync-mercadopago");
+  const result = await runMercadoPagoSync();
   revalidatePath("/finanzas");
-}
-
-export async function updateIncome(id: string, payload: Partial<IncomePayload>) {
-  const exchange_rate = await fetchBlueVenta();
-  const validated = incomePayloadSchema.partial().parse({ ...payload, exchange_rate });
-  const supabase = await createClient();
-  const { error } = await supabase.from("income").update(validated).eq("id", id);
-  if (error) throw new Error(error.message);
-  revalidatePath("/finanzas");
-}
-
-export async function deleteIncome(id: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("income").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-  revalidatePath("/finanzas");
+  revalidatePath("/gastos");
+  return result;
 }

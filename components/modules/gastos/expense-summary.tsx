@@ -14,17 +14,17 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { EXPENSE_CATEGORY_EXTENDED_LABELS } from "@/lib/constants/labels";
-import type { Expense } from "@/lib/types/database.types";
+import type { Movement } from "@/lib/types/database.types";
 
 interface ExpenseSummaryProps {
-  expenses: Expense[];
+  expenses: Movement[];
   isLoading: boolean;
 }
 
 const CHART_COLOR = "hsl(20 100% 62%)";
 const CHART_COLOR_USD = "hsl(30 45% 64%)";
 
-function groupByCategory(expenses: Expense[], currency: "ARS" | "USD") {
+function groupByCategory(expenses: Movement[], currency: "ARS" | "USD") {
   const map: Record<string, number> = {};
   for (const e of expenses) {
     if (e.currency !== currency) continue;

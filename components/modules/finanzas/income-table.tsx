@@ -10,36 +10,22 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Pencil, TrendingUp } from "lucide-react";
+import { Pencil, TrendingUp, RefreshCw, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { INCOME_CATEGORY_LABELS } from "@/lib/constants/labels";
-import { useUpdateIncome } from "@/hooks/use-income";
-import type { Income, Project } from "@/lib/types/database.types";
+import type { Movement, ProjectWithClient } from "@/lib/types/database.types";
 
 interface IncomeTableProps {
-  income: Income[];
-  projects: Project[];
+  income: Movement[];
+  projects: ProjectWithClient[];
   isLoading: boolean;
-  onEdit: (income: Income) => void;
+  onEdit: (movement: Movement) => void;
 }
 
-
-export function IncomeTable({
-  income,
-  projects,
-  isLoading,
-  onEdit,
-}: IncomeTableProps) {
-  const updateIncome = useUpdateIncome();
-
+export function IncomeTable({ income, projects, isLoading, onEdit }: IncomeTableProps) {
   const projectMap = Object.fromEntries(projects.map((p) => [p.id, p]));
-
-  function handleToggle(id: string, field: "invoice_sent" | "paid", value: boolean) {
-    updateIncome.mutate({ id, payload: { [field]: value } });
-  }
 
   if (isLoading) {
     return (
@@ -56,7 +42,7 @@ export function IncomeTable({
       <EmptyState
         icon={TrendingUp}
         title="Sin ingresos este mes"
-        description="Registrá un ingreso para empezar a ver el resumen."
+        description="Los ingresos se sincronizan automáticamente desde Mercado Pago."
       />
     );
   }
@@ -71,17 +57,25 @@ export function IncomeTable({
             <TableHead className="text-right">Monto</TableHead>
             <TableHead>Fecha</TableHead>
             <TableHead>Categoría</TableHead>
-            <TableHead className="text-center">Factura</TableHead>
-            <TableHead className="text-center">Cobrado</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {income.map((entry) => {
             const project = entry.project_id ? projectMap[entry.project_id] : null;
+            const isUnclassified = !entry.category && !entry.project_id;
             return (
               <TableRow key={entry.id} className="hover:bg-secondary/50">
-                <TableCell className="font-medium">{entry.description}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-1.5">
+                    {isUnclassified && (
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    )}
+                    <span className="truncate max-w-[200px]">
+                      {entry.description ?? entry.counterpart_name ?? "—"}
+                    </span>
+                  </div>
+                </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
                   {project ? (
                     <span className="text-foreground">{project.name}</span>
@@ -96,31 +90,18 @@ export function IncomeTable({
                   {formatDate(entry.date)}
                 </TableCell>
                 <TableCell>
-                  {entry.category ? (
-                    <Badge variant="secondary" className="text-xs">
-                      {INCOME_CATEGORY_LABELS[entry.category] ?? entry.category}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground text-xs">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  <Checkbox
-                    checked={entry.invoice_sent}
-                    onCheckedChange={(v) =>
-                      handleToggle(entry.id, "invoice_sent", Boolean(v))
-                    }
-                    disabled={updateIncome.isPending}
-                  />
-                </TableCell>
-                <TableCell className="text-center">
-                  <Checkbox
-                    checked={entry.paid}
-                    onCheckedChange={(v) =>
-                      handleToggle(entry.id, "paid", Boolean(v))
-                    }
-                    disabled={updateIncome.isPending}
-                  />
+                  <div className="flex items-center gap-1.5">
+                    {entry.category ? (
+                      <Badge variant="secondary" className="text-xs">
+                        {INCOME_CATEGORY_LABELS[entry.category] ?? entry.category}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                    {entry.is_recurring && (
+                      <RefreshCw className="h-3 w-3 text-primary shrink-0" />
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Button

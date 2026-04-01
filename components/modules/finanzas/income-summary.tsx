@@ -14,17 +14,17 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { INCOME_CATEGORY_EXTENDED_LABELS } from "@/lib/constants/labels";
-import type { Income } from "@/lib/types/database.types";
+import type { Movement } from "@/lib/types/database.types";
 
 interface IncomeSummaryProps {
-  income: Income[];
+  income: Movement[];
   isLoading: boolean;
 }
 
 const CHART_COLOR = "hsl(20 100% 62%)";
 const CHART_COLOR_USD = "hsl(30 45% 64%)";
 
-function groupByCategory(income: Income[], currency: "ARS" | "USD") {
+function groupByCategory(income: Movement[], currency: "ARS" | "USD") {
   const map: Record<string, number> = {};
   for (const e of income) {
     if (e.currency !== currency) continue;
@@ -85,8 +85,6 @@ export function IncomeSummary({ income, isLoading }: IncomeSummaryProps) {
   const totalUSD = income
     .filter((e) => e.currency === "USD")
     .reduce((sum, e) => sum + e.amount, 0);
-  const pendingCount = income.filter((e) => !e.paid).length;
-
   const arsData = groupByCategory(income, "ARS");
   const usdData = groupByCategory(income, "USD");
 
@@ -101,11 +99,6 @@ export function IncomeSummary({ income, isLoading }: IncomeSummaryProps) {
           <p className="text-2xl font-bold text-foreground">
             {formatCurrency(totalARS, "ARS")}
           </p>
-          {pendingCount > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {pendingCount} pendiente{pendingCount > 1 ? "s" : ""} de cobro
-            </p>
-          )}
         </div>
         <div className="bg-card border border-border rounded-lg p-4 space-y-1">
           <p className="text-xs text-muted-foreground uppercase tracking-wide">
