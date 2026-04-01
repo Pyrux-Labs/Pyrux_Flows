@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth, endOfMonth, startOfWeek, subMonths, format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { TrendingUp, Receipt, Users, FolderKanban, Clock, DollarSign } from "lucide-react";
+import { TrendingUp, Receipt, Users, FolderKanban, DollarSign } from "lucide-react";
 import Link from "next/link";
 import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import { TrendsChart } from "@/components/modules/dashboard/trends-chart";
@@ -43,91 +43,91 @@ async function getDashboardData() {
   const trendFrom = trendMonths[0].from;
   const trendTo = trendMonths[5].to;
 
-  const [dolarBlue, incomeRes, expensesRes, prospectsThisWeekRes, activeProjectsRes, recentProspectsRes, recentIncomeRes, pendingRes, trendIncomeRes, trendExpensesRes] =
-    await Promise.all([
-      getDolarBlue(),
-      supabase
-        .from("income")
-        .select("amount, currency")
-        .gte("date", monthFrom)
-        .lte("date", monthTo),
-      supabase
-        .from("expenses")
-        .select("amount, currency")
-        .gte("date", monthFrom)
-        .lte("date", monthTo),
-      supabase
-        .from("prospects")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", weekFrom),
-      supabase
-        .from("projects")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "activo"),
-      supabase
-        .from("prospects")
-        .select("id, name, business, status, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5),
-      supabase
-        .from("income")
-        .select("id, description, amount, currency, date")
-        .order("date", { ascending: false })
-        .limit(5),
-      // Pending collections: invoice sent but not yet paid
-      supabase
-        .from("income")
-        .select("amount, currency")
-        .eq("invoice_sent", true)
-        .eq("paid", false),
-      // Trend: income for last 6 months
-      supabase
-        .from("income")
-        .select("amount, currency, date")
-        .gte("date", trendFrom)
-        .lte("date", trendTo),
-      // Trend: expenses for last 6 months
-      supabase
-        .from("expenses")
-        .select("amount, currency, date")
-        .gte("date", trendFrom)
-        .lte("date", trendTo),
-    ]);
+  const [
+    dolarBlue,
+    creditsRes,
+    debitsRes,
+    prospectsThisWeekRes,
+    activeProjectsRes,
+    recentProspectsRes,
+    recentCreditsRes,
+    trendCreditsRes,
+    trendDebitsRes,
+  ] = await Promise.all([
+    getDolarBlue(),
+    supabase
+      .from("movements")
+      .select("amount, currency")
+      .eq("type", "credit")
+      .gte("date", monthFrom)
+      .lte("date", monthTo),
+    supabase
+      .from("movements")
+      .select("amount, currency")
+      .eq("type", "debit")
+      .gte("date", monthFrom)
+      .lte("date", monthTo),
+    supabase
+      .from("prospects")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", weekFrom),
+    supabase
+      .from("projects")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "activo"),
+    supabase
+      .from("prospects")
+      .select("id, name, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(5),
+    supabase
+      .from("movements")
+      .select("id, description, counterpart_name, amount, currency, date")
+      .eq("type", "credit")
+      .order("date", { ascending: false })
+      .limit(5),
+    // Trend: credits for last 6 months
+    supabase
+      .from("movements")
+      .select("amount, currency, date")
+      .eq("type", "credit")
+      .gte("date", trendFrom)
+      .lte("date", trendTo),
+    // Trend: debits for last 6 months
+    supabase
+      .from("movements")
+      .select("amount, currency, date")
+      .eq("type", "debit")
+      .gte("date", trendFrom)
+      .lte("date", trendTo),
+  ]);
 
-  const income = incomeRes.data ?? [];
-  const expenses = expensesRes.data ?? [];
-  // Use compra rate: when receiving ARS, you're converting to USD at compra price
-  const arsToUsd = (ars: number) => dolarBlue ? ars / dolarBlue.compra : 0;
+  const credits = creditsRes.data ?? [];
+  const debits = debitsRes.data ?? [];
+  const arsToUsd = (ars: number) => (dolarBlue ? ars / dolarBlue.compra : 0);
 
-  const totalIncomeUSD =
-    income.reduce((s, i) => s + (i.currency === "USD" ? i.amount : arsToUsd(i.amount)), 0);
-  const totalExpensesUSD =
-    expenses.reduce((s, e) => s + (e.currency === "USD" ? e.amount : arsToUsd(e.amount)), 0);
+  const totalIncomeUSD = credits.reduce(
+    (s, i) => s + (i.currency === "USD" ? i.amount : arsToUsd(i.amount)),
+    0,
+  );
+  const totalExpensesUSD = debits.reduce(
+    (s, e) => s + (e.currency === "USD" ? e.amount : arsToUsd(e.amount)),
+    0,
+  );
   const netoUSD = totalIncomeUSD - totalExpensesUSD;
 
-  // Pending collections
-  const pending = pendingRes.data ?? [];
-  const pendingUSD =
-    pending.reduce((s, i) => s + (i.currency === "USD" ? i.amount : arsToUsd(i.amount)), 0);
-
-  // Monthly trends in USD using stored exchange_rate per transaction, fallback to live rate
-  const trendIncome = trendIncomeRes.data ?? [];
-  const trendExpenses = trendExpensesRes.data ?? [];
+  // Monthly trends in USD
+  const trendCredits = trendCreditsRes.data ?? [];
+  const trendDebits = trendDebitsRes.data ?? [];
   const fallbackRate = dolarBlue?.venta ?? 1;
   const toUSD = (amount: number, currency: string) =>
     currency === "USD" ? amount : amount / fallbackRate;
 
   const trendsData = trendMonths.map(({ label, from, to }) => {
-    const monthIncome = trendIncome.filter((i) => i.date >= from && i.date <= to);
-    const monthExpenses = trendExpenses.filter((e) => e.date >= from && e.date <= to);
-    const ingresos = monthIncome.reduce(
-      (s, i) => s + toUSD(i.amount, i.currency),
-      0,
-    );
-    const gastos = monthExpenses.reduce(
-      (s, e) => s + toUSD(e.amount, e.currency),
-      0,
-    );
+    const monthCredits = trendCredits.filter((i) => i.date >= from && i.date <= to);
+    const monthDebits = trendDebits.filter((e) => e.date >= from && e.date <= to);
+    const ingresos = monthCredits.reduce((s, i) => s + toUSD(i.amount, i.currency), 0);
+    const gastos = monthDebits.reduce((s, e) => s + toUSD(e.amount, e.currency), 0);
     return { month: label.charAt(0).toUpperCase() + label.slice(1), ingresos, gastos };
   });
 
@@ -136,15 +136,13 @@ async function getDashboardData() {
     totalIncomeUSD,
     totalExpensesUSD,
     netoUSD,
-    pendingUSD,
     trendsData,
     prospectsThisWeek: prospectsThisWeekRes.count ?? 0,
     activeProjects: activeProjectsRes.count ?? 0,
     recentProspects: recentProspectsRes.data ?? [],
-    recentIncome: recentIncomeRes.data ?? [],
+    recentIncome: recentCreditsRes.data ?? [],
   };
 }
-
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
@@ -207,7 +205,8 @@ export default async function DashboardPage() {
           <span className="text-sm font-medium text-foreground">Dólar blue</span>
           {data.dolarBlue && (
             <span className="text-xs text-muted-foreground ml-auto">
-              Actualizado {new Date(data.dolarBlue.fechaActualizacion).toLocaleString("es-AR", {
+              Actualizado{" "}
+              {new Date(data.dolarBlue.fechaActualizacion).toLocaleString("es-AR", {
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
@@ -238,20 +237,6 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* Pending collections */}
-      {data.pendingUSD > 0 && (
-        <Link
-          href="/finanzas"
-          className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-colors"
-        >
-          <Clock className="h-4 w-4 text-amber-500 shrink-0" />
-          <span className="text-sm text-muted-foreground">Pendiente de cobro:</span>
-          <span className="text-sm font-semibold text-foreground ml-1">
-            {formatCurrency(data.pendingUSD, "USD")}
-          </span>
-        </Link>
-      )}
-
       {/* Monthly trends chart */}
       <div className="space-y-3">
         <h2 className="text-sm font-medium text-foreground">
@@ -270,10 +255,7 @@ export default async function DashboardPage() {
             <h2 className="text-sm font-medium text-foreground">
               Últimos prospectos
             </h2>
-            <Link
-              href="/prospectos"
-              className="text-xs text-primary hover:underline"
-            >
+            <Link href="/prospectos" className="text-xs text-primary hover:underline">
               Ver todos
             </Link>
           </div>
@@ -286,12 +268,7 @@ export default async function DashboardPage() {
                   key={p.id}
                   className="flex items-center justify-between px-4 py-3"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{p.name}</p>
-                    {p.business && (
-                      <p className="text-xs text-muted-foreground">{p.business}</p>
-                    )}
-                  </div>
+                  <p className="text-sm font-medium text-foreground">{p.name}</p>
                   <span className="text-xs text-muted-foreground">
                     {PROSPECT_STATUS_LABELS[p.status] ?? p.status}
                   </span>
@@ -307,10 +284,7 @@ export default async function DashboardPage() {
             <h2 className="text-sm font-medium text-foreground">
               Últimos ingresos
             </h2>
-            <Link
-              href="/finanzas"
-              className="text-xs text-primary hover:underline"
-            >
+            <Link href="/finanzas" className="text-xs text-primary hover:underline">
               Ver todos
             </Link>
           </div>
@@ -325,11 +299,9 @@ export default async function DashboardPage() {
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      {i.description}
+                      {i.description ?? i.counterpart_name ?? "—"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(i.date)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{formatDate(i.date)}</p>
                   </div>
                   <span className="text-sm font-mono font-medium text-foreground">
                     {formatCurrency(i.amount, i.currency as "ARS" | "USD")}
