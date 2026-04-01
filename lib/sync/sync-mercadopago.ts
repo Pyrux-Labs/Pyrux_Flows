@@ -110,28 +110,32 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
     `&end_date=${toISOString(endDate)}` +
     `&limit=300`;
 
-  // 3a. Credits: payments/search (has full counterpart info)
-  // 3b. Debits:  account movements API — the only source for outgoing transfers
-  const [paymentsRes, debitsRes] = await Promise.all([
-    apiFetch<MpSearchResponse>(
-      MP_API,
-      `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
-    ),
-    mlFetch<MpMovementsResponse>(
-      `/mercadopago_account/movements/search?type=expense&status=available${dateParams}`,
-    ),
-  ]);
+  // 3. Fetch all payments from MP (broad — no payer/collector filter)
+  const paymentsRes = await apiFetch<MpSearchResponse>(
+    MP_API,
+    `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
+  );
 
+  // Debug: log every operation_type and who is collector vs payer
+  const opTypes = [...new Set(paymentsRes.results.map((p) => p.operation_type))];
+  const asCollectorCount = paymentsRes.results.filter((p) => p.collector_id === myUserId).length;
+  const asPayerCount = paymentsRes.results.filter((p) => p.payer?.id === myUserId).length;
   console.log(
     `[sync-mp] window: ${toISOString(beginDate)} → ${toISOString(endDate)}, ` +
-    `payments: ${paymentsRes.results.length}, expense_movements: ${debitsRes.results.length}`,
+    `total: ${paymentsRes.results.length}, asCollector: ${asCollectorCount}, asPayer: ${asPayerCount}, ` +
+    `operation_types: ${opTypes.join(", ")}`,
   );
+  // Log first 3 raw payments for inspection
+  paymentsRes.results.slice(0, 3).forEach((p, i) => {
+    console.log(`[sync-mp] payment[${i}] id=${p.id} op=${p.operation_type} status=${p.status} collector=${p.collector_id} payer=${p.payer?.id} amount=${p.transaction_amount}`);
+  });
 
   // 4. Load mp_rules for auto-assignment
   const { data: rules } = await supabase.from("mp_rules").select("*");
   const ruleMap = buildRuleMap(rules ?? []);
 
   // 5a. Build credit movements from payments/search
+  const debitsRes: MpMovementsResponse = { results: [], paging: { total: 0, limit: 0, offset: 0 } }; // placeholder until we find the right endpoint
   const approvedPayments = paymentsRes.results.filter((p) => p.status === "approved");
   const creditMovements = approvedPayments
     .filter((p) => p.collector_id === myUserId && p.payer?.id != null)
