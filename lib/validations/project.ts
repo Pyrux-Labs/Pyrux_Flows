@@ -1,15 +1,19 @@
 import { z } from "zod";
 
 export const projectPayloadSchema = z.object({
+  client_id: z.string().uuid(),
+  service_id: z.string().uuid().nullable().optional(),
   name: z.string().min(1),
-  client_name: z.string().min(1),
-  prospect_id: z.string().uuid().nullable().optional(),
-  status: z.enum(["activo", "pausado", "completado", "cancelado"]),
+  status: z.enum(["activo", "pausado", "completado", "cancelado", "mantenimiento"]),
   start_date: z.string().nullable().optional(),
   end_date: z.string().nullable().optional(),
-  budget: z.number().nonnegative().nullable().optional(),
-  paid: z.boolean(),
+  price: z.number().nonnegative().nullable().optional(),
+  currency: z.enum(["ARS", "USD"]).default("USD"),
   notes: z.string().nullable().optional(),
+  maintenance_amount: z.number().nonnegative().nullable().optional(),
+  maintenance_currency: z.enum(["ARS", "USD"]).default("USD"),
+  maintenance_since: z.string().nullable().optional(),
+  maintenance_price_updated_at: z.string().nullable().optional(),
 });
 
 export type ProjectPayloadSchema = z.infer<typeof projectPayloadSchema>;

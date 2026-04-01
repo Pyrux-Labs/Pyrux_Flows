@@ -24,7 +24,9 @@ export function formatCurrency(amount: number, currency: "ARS" | "USD"): string 
  * Appends T00:00:00 to avoid UTC-offset shifting the date.
  */
 export function formatDate(dateStr: string): string {
-  return format(new Date(dateStr + "T00:00:00"), "dd/MM/yyyy");
+  // Works with both "YYYY-MM-DD" and full ISO timestamps from Supabase
+  const d = new Date(dateStr.includes("T") || dateStr.includes(" ") ? dateStr : dateStr + "T00:00:00");
+  return format(d, "dd/MM/yyyy");
 }
 
 /** Returns today as YYYY-MM-DD for use in date inputs */
