@@ -53,7 +53,21 @@ async function apiFetch<T>(baseUrl: string, path: string): Promise<T> {
     headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
   });
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${baseUrl}${path}`);
+    const body = await res.text().catch(() => "");
+    throw new Error(`API error ${res.status}: ${baseUrl}${path} — ${body}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+// Some older ML endpoints require the token as a query param instead of Bearer header
+async function mlFetch<T>(path: string): Promise<T> {
+  const separator = path.includes("?") ? "&" : "?";
+  const res = await fetch(
+    `${ML_API}${path}${separator}access_token=${process.env.MP_ACCESS_TOKEN}`,
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`API error ${res.status}: ${ML_API}${path} — ${body}`);
   }
   return res.json() as Promise<T>;
 }
@@ -103,8 +117,7 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
       MP_API,
       `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
     ),
-    apiFetch<MpMovementsResponse>(
-      ML_API,
+    mlFetch<MpMovementsResponse>(
       `/mercadopago_account/movements/search?type=expense&status=available${dateParams}`,
     ),
   ]);
