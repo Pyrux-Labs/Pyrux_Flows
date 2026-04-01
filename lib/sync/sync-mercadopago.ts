@@ -28,26 +28,6 @@ interface MpSearchResponse {
   paging: { total: number; limit: number; offset: number };
 }
 
-// Account movements API (api.mercadolibre.com — no /v1/ prefix)
-// Returns ALL account events including outgoing transfers not visible in payments/search
-interface MpAccountMovement {
-  id: number;
-  user_id: number;
-  type: "income" | "expense";
-  detail: string; // "payment", "money_transfer", "bank_transfer", etc.
-  amount: number; // positive for income, negative for expense
-  currency_id: string;
-  reference_id: number | null;
-  status: string; // "available" | "unavailable"
-  date_created: string;
-  date_released: string | null;
-}
-
-interface MpMovementsResponse {
-  results: MpAccountMovement[];
-  paging: { total: number; limit: number; offset: number };
-}
-
 async function apiFetch<T>(baseUrl: string, path: string): Promise<T> {
   const res = await fetch(`${baseUrl}${path}`, {
     headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
@@ -57,23 +37,6 @@ async function apiFetch<T>(baseUrl: string, path: string): Promise<T> {
     throw new Error(`API error ${res.status}: ${baseUrl}${path} — ${body}`);
   }
   return res.json() as Promise<T>;
-}
-
-// Some older ML endpoints require the token as a query param instead of Bearer header
-async function mlFetch<T>(path: string): Promise<T> {
-  const separator = path.includes("?") ? "&" : "?";
-  const res = await fetch(
-    `${ML_API}${path}${separator}access_token=${process.env.MP_ACCESS_TOKEN}`,
-  );
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ${ML_API}${path} — ${body}`);
-  }
-  return res.json() as Promise<T>;
-}
-
-function toISOString(date: Date): string {
-  return date.toISOString();
 }
 
 function buildRuleMap(rules: MpRule[]): Map<string, MpRule> {
@@ -87,7 +50,7 @@ function buildRuleMap(rules: MpRule[]): Map<string, MpRule> {
 export async function runMercadoPagoSync(): Promise<{ synced: number }> {
   const supabase = createAdminClient();
 
-  // 1. Get own MP user ID (Mercado Libre API, no /v1 prefix)
+  // 1. Get own MP user ID
   const me = await apiFetch<MpUser>(ML_API, "/users/me");
   const myUserId = me.id;
 
@@ -104,41 +67,29 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
 
   const endDate = new Date();
 
-  const dateParams =
-    `&range=date_created` +
-    `&begin_date=${toISOString(beginDate)}` +
-    `&end_date=${toISOString(endDate)}` +
-    `&limit=300`;
-
-  // 3. Fetch all payments from MP (broad — no payer/collector filter)
-  const paymentsRes = await apiFetch<MpSearchResponse>(
+  // 3. Fetch inbound payments (payments/search only returns where we're the collector)
+  // Outgoing transfers are captured via webhook — see /api/webhooks/mercadopago
+  const { results } = await apiFetch<MpSearchResponse>(
     MP_API,
-    `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
+    `/v1/payments/search?sort=date_created&criteria=desc` +
+      `&range=date_created` +
+      `&begin_date=${beginDate.toISOString()}` +
+      `&end_date=${endDate.toISOString()}` +
+      `&limit=300`,
   );
-
-  // Debug: log every operation_type and who is collector vs payer
-  const opTypes = [...new Set(paymentsRes.results.map((p) => p.operation_type))];
-  const asCollectorCount = paymentsRes.results.filter((p) => p.collector_id === myUserId).length;
-  const asPayerCount = paymentsRes.results.filter((p) => p.payer?.id === myUserId).length;
-  console.log(
-    `[sync-mp] window: ${toISOString(beginDate)} → ${toISOString(endDate)}, ` +
-    `total: ${paymentsRes.results.length}, asCollector: ${asCollectorCount}, asPayer: ${asPayerCount}, ` +
-    `operation_types: ${opTypes.join(", ")}`,
-  );
-  // Log first 3 raw payments for inspection
-  paymentsRes.results.slice(0, 3).forEach((p, i) => {
-    console.log(`[sync-mp] payment[${i}] id=${p.id} op=${p.operation_type} status=${p.status} collector=${p.collector_id} payer=${p.payer?.id} amount=${p.transaction_amount}`);
-  });
 
   // 4. Load mp_rules for auto-assignment
   const { data: rules } = await supabase.from("mp_rules").select("*");
   const ruleMap = buildRuleMap(rules ?? []);
 
-  // 5a. Build credit movements from payments/search
-  const debitsRes: MpMovementsResponse = { results: [], paging: { total: 0, limit: 0, offset: 0 } }; // placeholder until we find the right endpoint
-  const approvedPayments = paymentsRes.results.filter((p) => p.status === "approved");
-  const creditMovements = approvedPayments
-    .filter((p) => p.collector_id === myUserId && p.payer?.id != null)
+  // 5. Build credit movements
+  const movements = results
+    .filter(
+      (p) =>
+        p.status === "approved" &&
+        p.collector_id === myUserId &&
+        p.payer?.id != null,
+    )
     .map((p) => {
       const counterpartId = String(p.payer!.id);
       const counterpartName =
@@ -159,40 +110,15 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
       };
     });
 
-  // 5b. Build debit movements from account movements API
-  // Use reference_id as mp_id so it deduplicates against any payment that may also be in payments/search
-  const debitMovements = debitsRes.results.map((m) => {
-    const mpId = String(m.reference_id ?? m.id);
-    const rule = ruleMap.get(`${mpId}:debit`);
-    return {
-      mp_id: `debit_${mpId}`,
-      type: "debit" as const,
-      amount: Math.abs(m.amount),
-      currency: m.currency_id === "ARS" ? "ARS" : "USD",
-      description: m.detail ?? null,
-      date: (m.date_released ?? m.date_created).split("T")[0],
-      counterpart_id: null,
-      counterpart_name: null,
-      project_id: rule?.project_id ?? null,
-      category: rule?.category ?? null,
-      is_recurring: rule?.is_recurring ?? false,
-    };
-  });
-
-  const movements = [...creditMovements, ...debitMovements];
-
-  console.log(
-    `[sync-mp] credits: ${creditMovements.length}, debits: ${debitMovements.length}, total: ${movements.length}`,
-  );
-
   // 6. Upsert — mp_id unique constraint prevents duplicates
-  const { error } = await supabase
-    .from("movements")
-    .upsert(movements, { onConflict: "mp_id", ignoreDuplicates: true });
+  if (movements.length > 0) {
+    const { error } = await supabase
+      .from("movements")
+      .upsert(movements, { onConflict: "mp_id", ignoreDuplicates: true });
+    if (error) throw error;
+  }
 
-  if (error) throw error;
-
-  // 7. Update last sync timestamp
+  // 7. Save sync timestamp only if we got results
   await supabase.from("settings").upsert(
     { key: "last_sync_at", value: endDate.toISOString(), updated_at: new Date().toISOString() },
     { onConflict: "key" },
