@@ -28,6 +28,26 @@ interface MpSearchResponse {
   paging: { total: number; limit: number; offset: number };
 }
 
+// Account movements API (api.mercadolibre.com — no /v1/ prefix)
+// Returns ALL account events including outgoing transfers not visible in payments/search
+interface MpAccountMovement {
+  id: number;
+  user_id: number;
+  type: "income" | "expense";
+  detail: string; // "payment", "money_transfer", "bank_transfer", etc.
+  amount: number; // positive for income, negative for expense
+  currency_id: string;
+  reference_id: number | null;
+  status: string; // "available" | "unavailable"
+  date_created: string;
+  date_released: string | null;
+}
+
+interface MpMovementsResponse {
+  results: MpAccountMovement[];
+  paging: { total: number; limit: number; offset: number };
+}
+
 async function apiFetch<T>(baseUrl: string, path: string): Promise<T> {
   const res = await fetch(`${baseUrl}${path}`, {
     headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
@@ -70,74 +90,46 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
 
   const endDate = new Date();
 
-  // 3. Fetch payments from MP — two queries in parallel:
-  //    a) payments where we're the collector (inbound/credits)
-  //    b) payments where we're the payer (outbound/debits)
   const dateParams =
     `&range=date_created` +
     `&begin_date=${toISOString(beginDate)}` +
     `&end_date=${toISOString(endDate)}` +
     `&limit=300`;
 
-  const [asCollector, asPayer] = await Promise.all([
+  // 3a. Credits: payments/search (has full counterpart info)
+  // 3b. Debits:  account movements API — the only source for outgoing transfers
+  const [paymentsRes, debitsRes] = await Promise.all([
     apiFetch<MpSearchResponse>(
       MP_API,
       `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
     ),
-    apiFetch<MpSearchResponse>(
-      MP_API,
-      `/v1/payments/search?sort=date_created&criteria=desc&payer.id=${myUserId}${dateParams}`,
+    apiFetch<MpMovementsResponse>(
+      ML_API,
+      `/mercadopago_account/movements/search?type=expense&status=available${dateParams}`,
     ),
   ]);
 
-  // Deduplicate by payment id (a payment can appear in both queries)
-  const seen = new Set<number>();
-  const allResults: MpPayment[] = [];
-  for (const p of [...asCollector.results, ...asPayer.results]) {
-    if (!seen.has(p.id)) {
-      seen.add(p.id);
-      allResults.push(p);
-    }
-  }
-
   console.log(
     `[sync-mp] window: ${toISOString(beginDate)} → ${toISOString(endDate)}, ` +
-    `asCollector: ${asCollector.results.length}, asPayer: ${asPayer.results.length}, merged: ${allResults.length}`,
+    `payments: ${paymentsRes.results.length}, expense_movements: ${debitsRes.results.length}`,
   );
-
-  if (allResults.length === 0) {
-    return { synced: 0 };
-  }
 
   // 4. Load mp_rules for auto-assignment
   const { data: rules } = await supabase.from("mp_rules").select("*");
   const ruleMap = buildRuleMap(rules ?? []);
 
-  const approved = allResults.filter((p) => p.status === "approved");
-  console.log(
-    `[sync-mp] approved: ${approved.length}, ` +
-    `statuses: ${[...new Set(allResults.map((p) => p.status))].join(", ")}`,
-  );
-  console.log(
-    `[sync-mp] with collector_id+payer: ${approved.filter((p) => p.collector_id != null && p.payer?.id != null).length}`,
-  );
-
-  // 5. Build movements — skip payments without collector_id or payer
-  const movements = approved
-    .filter((p) => p.collector_id != null && p.payer?.id != null)
+  // 5a. Build credit movements from payments/search
+  const approvedPayments = paymentsRes.results.filter((p) => p.status === "approved");
+  const creditMovements = approvedPayments
+    .filter((p) => p.collector_id === myUserId && p.payer?.id != null)
     .map((p) => {
-      const isCredit = p.collector_id === myUserId;
-      const counterpartId = isCredit ? String(p.payer!.id) : String(p.collector_id);
-      const counterpartName = isCredit
-        ? [p.payer!.first_name, p.payer!.last_name].filter(Boolean).join(" ") || null
-        : null;
-
-      const movementType = isCredit ? "credit" : "debit";
-      const rule = ruleMap.get(`${counterpartId}:${movementType}`);
-
+      const counterpartId = String(p.payer!.id);
+      const counterpartName =
+        [p.payer!.first_name, p.payer!.last_name].filter(Boolean).join(" ") || null;
+      const rule = ruleMap.get(`${counterpartId}:credit`);
       return {
         mp_id: String(p.id),
-        type: movementType as "credit" | "debit",
+        type: "credit" as const,
         amount: p.transaction_amount,
         currency: p.currency_id === "ARS" ? "ARS" : "USD",
         description: p.description ?? null,
@@ -149,6 +141,32 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
         is_recurring: rule?.is_recurring ?? false,
       };
     });
+
+  // 5b. Build debit movements from account movements API
+  // Use reference_id as mp_id so it deduplicates against any payment that may also be in payments/search
+  const debitMovements = debitsRes.results.map((m) => {
+    const mpId = String(m.reference_id ?? m.id);
+    const rule = ruleMap.get(`${mpId}:debit`);
+    return {
+      mp_id: `debit_${mpId}`,
+      type: "debit" as const,
+      amount: Math.abs(m.amount),
+      currency: m.currency_id === "ARS" ? "ARS" : "USD",
+      description: m.detail ?? null,
+      date: (m.date_released ?? m.date_created).split("T")[0],
+      counterpart_id: null,
+      counterpart_name: null,
+      project_id: rule?.project_id ?? null,
+      category: rule?.category ?? null,
+      is_recurring: rule?.is_recurring ?? false,
+    };
+  });
+
+  const movements = [...creditMovements, ...debitMovements];
+
+  console.log(
+    `[sync-mp] credits: ${creditMovements.length}, debits: ${debitMovements.length}, total: ${movements.length}`,
+  );
 
   // 6. Upsert — mp_id unique constraint prevents duplicates
   const { error } = await supabase
