@@ -70,18 +70,42 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
 
   const endDate = new Date();
 
-  // 3. Fetch payments from MP
-  const search = await apiFetch<MpSearchResponse>(
-    MP_API,
-    `/v1/payments/search?sort=date_created&criteria=desc` +
-      `&range=date_created` +
-      `&begin_date=${toISOString(beginDate)}` +
-      `&end_date=${toISOString(endDate)}` +
-      `&limit=300`,
-  );
-  console.log(`[sync-mp] window: ${toISOString(beginDate)} → ${toISOString(endDate)}, results: ${search.results.length}`);
+  // 3. Fetch payments from MP — two queries in parallel:
+  //    a) payments where we're the collector (inbound/credits)
+  //    b) payments where we're the payer (outbound/debits)
+  const dateParams =
+    `&range=date_created` +
+    `&begin_date=${toISOString(beginDate)}` +
+    `&end_date=${toISOString(endDate)}` +
+    `&limit=300`;
 
-  if (search.results.length === 0) {
+  const [asCollector, asPayer] = await Promise.all([
+    apiFetch<MpSearchResponse>(
+      MP_API,
+      `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
+    ),
+    apiFetch<MpSearchResponse>(
+      MP_API,
+      `/v1/payments/search?sort=date_created&criteria=desc&payer.id=${myUserId}${dateParams}`,
+    ),
+  ]);
+
+  // Deduplicate by payment id (a payment can appear in both queries)
+  const seen = new Set<number>();
+  const allResults: MpPayment[] = [];
+  for (const p of [...asCollector.results, ...asPayer.results]) {
+    if (!seen.has(p.id)) {
+      seen.add(p.id);
+      allResults.push(p);
+    }
+  }
+
+  console.log(
+    `[sync-mp] window: ${toISOString(beginDate)} → ${toISOString(endDate)}, ` +
+    `asCollector: ${asCollector.results.length}, asPayer: ${asPayer.results.length}, merged: ${allResults.length}`,
+  );
+
+  if (allResults.length === 0) {
     return { synced: 0 };
   }
 
@@ -89,10 +113,14 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
   const { data: rules } = await supabase.from("mp_rules").select("*");
   const ruleMap = buildRuleMap(rules ?? []);
 
-  const approved = search.results.filter((p) => p.status === "approved");
-  console.log(`[sync-mp] approved: ${approved.length}, statuses: ${[...new Set(search.results.map(p => p.status))].join(", ")}`);
-
-  console.log(`[sync-mp] with collector_id+payer: ${approved.filter(p => p.collector_id != null && p.payer?.id != null).length}`);
+  const approved = allResults.filter((p) => p.status === "approved");
+  console.log(
+    `[sync-mp] approved: ${approved.length}, ` +
+    `statuses: ${[...new Set(allResults.map((p) => p.status))].join(", ")}`,
+  );
+  console.log(
+    `[sync-mp] with collector_id+payer: ${approved.filter((p) => p.collector_id != null && p.payer?.id != null).length}`,
+  );
 
   // 5. Build movements — skip payments without collector_id or payer
   const movements = approved
