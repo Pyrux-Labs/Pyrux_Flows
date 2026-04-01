@@ -6,17 +6,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, FolderKanban } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import type { Project, ProjectStatus } from "@/lib/types/database.types";
+import type { ProjectWithClient, ProjectStatus } from "@/lib/types/database.types";
 
 interface ProjectKanbanProps {
-  projects: Project[];
+  projects: ProjectWithClient[];
   isLoading: boolean;
-  onEdit: (project: Project) => void;
+  onEdit: (project: ProjectWithClient) => void;
 }
 
 const COLUMNS: { status: ProjectStatus; label: string }[] = [
   { status: "activo", label: "Activo" },
   { status: "pausado", label: "Pausado" },
+  { status: "mantenimiento", label: "Mantenimiento" },
   { status: "completado", label: "Completado" },
   { status: "cancelado", label: "Cancelado" },
 ];
@@ -25,8 +26,8 @@ function ProjectCard({
   project,
   onEdit,
 }: {
-  project: Project;
-  onEdit: (p: Project) => void;
+  project: ProjectWithClient;
+  onEdit: (p: ProjectWithClient) => void;
 }) {
   return (
     <div className="bg-card border border-border rounded-md p-3 space-y-2 group">
@@ -43,11 +44,11 @@ function ProjectCard({
           <Pencil className="h-3 w-3" />
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">{project.client_name}</p>
+      <p className="text-xs text-muted-foreground">{project.client?.name ?? "—"}</p>
       <div className="flex items-center justify-between pt-0.5">
-        {project.budget != null ? (
+        {project.price != null ? (
           <span className="text-xs font-mono text-foreground">
-            {formatCurrency(project.budget, "USD")}
+            {formatCurrency(project.price, project.currency)}
           </span>
         ) : (
           <span />
@@ -60,7 +61,7 @@ function ProjectCard({
 export function ProjectKanban({ projects, isLoading, onEdit }: ProjectKanbanProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {COLUMNS.map((col) => (
           <div key={col.status} className="space-y-2">
             <Skeleton className="h-6 w-24 rounded" />
@@ -93,11 +94,11 @@ export function ProjectKanban({ projects, isLoading, onEdit }: ProjectKanbanProp
         );
       return acc;
     },
-    {} as Record<ProjectStatus, Project[]>,
+    {} as Record<ProjectStatus, ProjectWithClient[]>,
   );
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
       {COLUMNS.map((col) => {
         const colProjects = grouped[col.status] ?? [];
         return (

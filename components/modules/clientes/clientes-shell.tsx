@@ -3,12 +3,11 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClientTable } from "./client-table";
-import { ProspectSheet } from "@/components/modules/prospectos/prospect-sheet";
-import { useProspects } from "@/hooks/use-prospects";
+import { useClients } from "@/hooks/use-clients";
 import { useProjects } from "@/hooks/use-projects";
 import { usePagination } from "@/hooks/use-pagination";
 import { Button } from "@/components/ui/button";
-import type { Prospect } from "@/lib/types/database.types";
+import type { Client } from "@/lib/types/database.types";
 
 export function ClientesShell() {
   const router = useRouter();
@@ -17,20 +16,15 @@ export function ClientesShell() {
   const openedEditRef = useRef<string | null>(null);
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  const { data: allProspects = [], isLoading: loadingProspects } = useProspects();
+  const { data: clients = [], isLoading: loadingClients } = useClients();
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
-
-  const clients = useMemo(
-    () => allProspects.filter((p) => p.status === "cerrado"),
-    [allProspects],
-  );
 
   const projectCounts = useMemo(() => {
     return projects.reduce<Record<string, number>>((acc, project) => {
-      if (project.prospect_id) {
-        acc[project.prospect_id] = (acc[project.prospect_id] || 0) + 1;
+      if (project.client_id) {
+        acc[project.client_id] = (acc[project.client_id] || 0) + 1;
       }
       return acc;
     }, {});
@@ -39,24 +33,19 @@ export function ClientesShell() {
   const { visibleItems, hasMore, remaining, loadMore } = usePagination(clients);
 
   useEffect(() => {
-    if (!editId || loadingProspects || openedEditRef.current === editId) return;
-    const client = allProspects.find((p) => p.id === editId);
+    if (!editId || loadingClients || openedEditRef.current === editId) return;
+    const client = clients.find((c) => c.id === editId);
     if (client) {
       openedEditRef.current = editId;
-      setEditingProspect(client);
+      setEditingClient(client);
       setSheetOpen(true);
       router.replace("/clientes");
     }
-  }, [editId, loadingProspects, allProspects, router]);
+  }, [editId, loadingClients, clients, router]);
 
-  function handleEdit(prospect: Prospect) {
-    setEditingProspect(prospect);
+  function handleEdit(client: Client) {
+    setEditingClient(client);
     setSheetOpen(true);
-  }
-
-  function handleSheetOpenChange(open: boolean) {
-    setSheetOpen(open);
-    if (!open) setEditingProspect(null);
   }
 
   return (
@@ -64,14 +53,14 @@ export function ClientesShell() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Clientes</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Prospectos cerrados — clientes activos
+          Clientes activos y en mantenimiento
         </p>
       </div>
 
       <ClientTable
         clients={visibleItems}
         projectCounts={projectCounts}
-        isLoading={loadingProspects || loadingProjects}
+        isLoading={loadingClients || loadingProjects}
         onEdit={handleEdit}
       />
 
@@ -82,12 +71,6 @@ export function ClientesShell() {
           </Button>
         </div>
       )}
-
-      <ProspectSheet
-        open={sheetOpen}
-        onOpenChange={handleSheetOpenChange}
-        prospect={editingProspect}
-      />
     </div>
   );
 }

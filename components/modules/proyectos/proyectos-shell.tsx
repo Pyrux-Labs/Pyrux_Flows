@@ -10,7 +10,7 @@ import { ProjectKanban } from "./project-kanban";
 import { ProjectSheet } from "./project-sheet";
 import { useProjects } from "@/hooks/use-projects";
 import { usePagination } from "@/hooks/use-pagination";
-import type { Project } from "@/lib/types/database.types";
+import type { ProjectWithClient } from "@/lib/types/database.types";
 
 export function ProyectosShell() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export function ProyectosShell() {
   const openedEditRef = useRef<string | null>(null);
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectWithClient | null>(null);
 
   const { data: projects = [], isLoading } = useProjects();
   const { visibleItems: visibleProjects, hasMore, remaining, loadMore } = usePagination(projects);
@@ -35,7 +35,7 @@ export function ProyectosShell() {
     }
   }, [editId, isLoading, projects, router]);
 
-  function handleEdit(project: Project) {
+  function handleEdit(project: ProjectWithClient) {
     setEditingProject(project);
     setSheetOpen(true);
   }

@@ -40,51 +40,38 @@ import {
   useUpdateProspect,
   useDeleteProspect,
 } from "@/hooks/use-prospects";
-import {
-  SECTOR_LABELS,
-  SOURCE_LABELS,
-  PROSPECT_STATUS_LABELS,
-} from "@/lib/constants/labels";
+import { SECTOR_LABELS, PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import type { Prospect } from "@/lib/types/database.types";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
-  business: z.string().optional().nullable(),
   sector: z
     .enum([
       "contabilidad",
-      "legal",
-      "medico",
-      "estetica",
-      "gastronomia",
-      "fitness",
+      "construccion",
+      "consultoria",
       "dental",
+      "educacion",
+      "estetica",
+      "fitness",
+      "gastronomia",
+      "inmobiliaria",
+      "legal",
+      "logistica",
+      "medico",
+      "moda",
+      "ong",
+      "retail",
+      "tecnologia",
+      "turismo",
       "otro",
     ])
     .optional()
     .nullable(),
   email: z.string().email("Email inválido").optional().or(z.literal("")).nullable(),
   phone: z.string().optional().nullable(),
-  source: z
-    .enum([
-      "word_of_mouth",
-      "instagram",
-      "linkedin",
-      "cold_email",
-      "whatsapp",
-      "otro",
-    ])
-    .optional()
-    .nullable(),
-  status: z.enum([
-    "nuevo",
-    "contactado",
-    "en_negociacion",
-    "cerrado",
-    "perdido",
-  ]),
+  status: z.enum(["contactado", "en_negociacion", "cerrado", "perdido"]),
   notes: z.string().optional().nullable(),
-  last_contact: z.string().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -95,12 +82,7 @@ interface ProspectSheetProps {
   prospect?: Prospect | null;
 }
 
-
-export function ProspectSheet({
-  open,
-  onOpenChange,
-  prospect,
-}: ProspectSheetProps) {
+export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetProps) {
   const isEditing = !!prospect;
   const createProspect = useCreateProspect();
   const updateProspect = useUpdateProspect();
@@ -121,14 +103,11 @@ export function ProspectSheet({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
-      business: "",
       sector: null,
       email: "",
       phone: "",
-      source: null,
-      status: "nuevo",
+      status: "contactado",
       notes: "",
-      last_contact: null,
     },
   });
 
@@ -138,25 +117,19 @@ export function ProspectSheet({
         prospect
           ? {
               name: prospect.name,
-              business: prospect.business ?? "",
               sector: prospect.sector ?? null,
               email: prospect.email ?? "",
               phone: prospect.phone ?? "",
-              source: prospect.source ?? null,
-              status: prospect.status,
+              status: prospect.status as FormValues["status"],
               notes: prospect.notes ?? "",
-              last_contact: prospect.last_contact ?? null,
             }
           : {
               name: "",
-              business: "",
               sector: null,
               email: "",
               phone: "",
-              source: null,
-              status: "nuevo",
+              status: "contactado",
               notes: "",
-              last_contact: null,
             },
       );
     }
@@ -169,14 +142,11 @@ export function ProspectSheet({
   async function onSubmit(values: FormValues) {
     const payload = {
       name: values.name,
-      business: values.business || null,
       sector: values.sector ?? null,
       email: values.email || null,
       phone: values.phone || null,
-      source: values.source ?? null,
       status: values.status,
       notes: values.notes || null,
-      last_contact: values.last_contact || null,
     };
 
     try {
@@ -217,58 +187,25 @@ export function ProspectSheet({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="business">Empresa</Label>
-              <Input
-                id="business"
-                {...register("business")}
-                placeholder="Nombre de la empresa"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Sector</Label>
-                <Select
-                  value={watch("sector") ?? "_none"}
-                  onValueChange={(v) =>
-                    setValue("sector", v === "_none" ? null : (v as FormValues["sector"]))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccioná" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Sin sector</SelectItem>
-                    {Object.entries(SECTOR_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Fuente</Label>
-                <Select
-                  value={watch("source") ?? "_none"}
-                  onValueChange={(v) =>
-                    setValue("source", v === "_none" ? null : (v as FormValues["source"]))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccioná" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Sin fuente</SelectItem>
-                    {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label>Sector</Label>
+              <Select
+                value={watch("sector") ?? "_none"}
+                onValueChange={(v) =>
+                  setValue("sector", v === "_none" ? null : (v as FormValues["sector"]))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccioná" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">Sin sector</SelectItem>
+                  {Object.entries(SECTOR_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -293,9 +230,7 @@ export function ProspectSheet({
               <Label>Estado</Label>
               <Select
                 value={watch("status")}
-                onValueChange={(v) =>
-                  setValue("status", v as FormValues["status"])
-                }
+                onValueChange={(v) => setValue("status", v as FormValues["status"])}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -308,11 +243,6 @@ export function ProspectSheet({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="last_contact">Último contacto</Label>
-              <Input id="last_contact" type="date" {...register("last_contact")} />
             </div>
 
             <div className="space-y-2">

@@ -8,7 +8,7 @@ import type { ServiceCategory, ServiceUnit, Currency } from "@/lib/types/databas
 export interface ServicePayload {
   name: string;
   description?: string | null;
-  price?: number | null;
+  base_price?: number | null;
   currency: Currency;
   unit?: ServiceUnit | null;
   category?: ServiceCategory | null;

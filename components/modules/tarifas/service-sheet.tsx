@@ -56,7 +56,7 @@ const schema = z.object({
   currency: z.enum(["ARS", "USD"]),
   unit: z.enum(["proyecto", "hora", "mes"]).optional().nullable(),
   category: z
-    .enum(["web", "cms", "automatizacion", "mantenimiento", "consultoria"])
+    .enum(["web", "automatizacion", "mantenimiento", "consultoria"])
     .optional()
     .nullable(),
   active: z.boolean(),
@@ -108,7 +108,7 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
           ? {
               name: service.name,
               description: service.description ?? "",
-              priceInput: service.price != null ? String(service.price) : "",
+              priceInput: service.base_price != null ? String(service.base_price) : "",
               currency: service.currency,
               unit: service.unit ?? null,
               category: service.category ?? null,
@@ -139,7 +139,7 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
     const payload = {
       name: values.name,
       description: values.description || null,
-      price,
+      base_price: price,
       currency: values.currency,
       unit: values.unit ?? null,
       category: values.category ?? null,

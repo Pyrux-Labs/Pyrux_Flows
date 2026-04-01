@@ -2,11 +2,9 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pencil, GripVertical } from "lucide-react";
-import { formatDate } from "@/lib/utils";
-import { SOURCE_LABELS } from "@/lib/constants/labels";
+import { SECTOR_LABELS } from "@/lib/constants/labels";
 import type { Prospect } from "@/lib/types/database.types";
 
 interface ProspectCardProps {
@@ -49,9 +47,9 @@ export function ProspectCard({ prospect, onEdit }: ProspectCardProps) {
           <p className="text-sm font-medium text-foreground leading-snug truncate">
             {prospect.name}
           </p>
-          {prospect.business && (
+          {prospect.sector && (
             <p className="text-xs text-muted-foreground truncate">
-              {prospect.business}
+              {SECTOR_LABELS[prospect.sector] ?? prospect.sector}
             </p>
           )}
         </div>
@@ -64,20 +62,6 @@ export function ProspectCard({ prospect, onEdit }: ProspectCardProps) {
           <Pencil className="h-3 w-3" />
         </Button>
       </div>
-
-      {prospect.source && (
-        <div className="pl-5">
-          <span className="text-xs text-muted-foreground truncate">
-            {SOURCE_LABELS[prospect.source] ?? prospect.source}
-          </span>
-        </div>
-      )}
-
-      {prospect.last_contact && (
-        <p className="text-xs text-muted-foreground pl-5">
-          Últ. contacto: {formatDate(prospect.last_contact)}
-        </p>
-      )}
     </div>
   );
 }

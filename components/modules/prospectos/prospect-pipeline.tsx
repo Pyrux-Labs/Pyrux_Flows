@@ -12,7 +12,6 @@ interface ProspectPipelineProps {
 }
 
 const STAGES: { status: ProspectStatus; label: string }[] = [
-  { status: "nuevo", label: "Nuevo" },
   { status: "contactado", label: "Contactado" },
   { status: "en_negociacion", label: "En negociación" },
   { status: "cerrado", label: "Cerrado" },
@@ -20,7 +19,6 @@ const STAGES: { status: ProspectStatus; label: string }[] = [
 ];
 
 const STAGE_COLORS: Record<ProspectStatus, { bg: string; text: string; bar: string }> = {
-  nuevo: { bg: "bg-blue-500/10", text: "text-blue-400", bar: "bg-blue-500/60" },
   contactado: { bg: "bg-yellow-500/10", text: "text-yellow-400", bar: "bg-yellow-500/60" },
   en_negociacion: { bg: "bg-primary/10", text: "text-primary", bar: "bg-primary/70" },
   cerrado: { bg: "bg-green-500/10", text: "text-green-400", bar: "bg-green-500/60" },

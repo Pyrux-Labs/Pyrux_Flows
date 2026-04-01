@@ -61,7 +61,7 @@ export function ServiceCard({ service, onEdit }: ServiceCardProps) {
 
       <div className="flex items-center justify-between mt-auto pt-1">
         <div className="text-sm font-semibold text-foreground">
-          {formatPrice(service.price, service.currency)}
+          {formatPrice(service.base_price, service.currency)}
           {service.unit && (
             <span className="text-xs font-normal text-muted-foreground ml-1">
               / {SERVICE_UNIT_SHORT_LABELS[service.unit] ?? service.unit}

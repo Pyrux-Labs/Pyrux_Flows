@@ -3,22 +3,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { prospectPayloadSchema } from "@/lib/validations/prospect";
-import type {
-  ProspectStatus,
-  ProspectSector,
-  ProspectSource,
-} from "@/lib/types/database.types";
+import type { ProspectStatus, Sector } from "@/lib/types/database.types";
 
 export interface ProspectPayload {
   name: string;
-  business?: string | null;
-  sector?: ProspectSector | null;
+  sector?: Sector | null;
   email?: string | null;
   phone?: string | null;
-  source?: ProspectSource | null;
   status: ProspectStatus;
   notes?: string | null;
-  last_contact?: string | null;
 }
 
 export async function createProspect(payload: ProspectPayload) {

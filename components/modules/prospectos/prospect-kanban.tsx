@@ -31,14 +31,13 @@ interface ProspectKanbanProps {
 }
 
 const COLUMNS: { status: ProspectStatus; label: string }[] = [
-  { status: "nuevo", label: "Nuevo" },
   { status: "contactado", label: "Contactado" },
   { status: "en_negociacion", label: "En negociación" },
+  { status: "cerrado", label: "Cerrado" },
   { status: "perdido", label: "Perdido" },
 ];
 
 const COLUMN_COLORS: Record<ProspectStatus, string> = {
-  nuevo: "bg-blue-500/20 text-blue-400",
   contactado: "bg-yellow-500/20 text-yellow-400",
   en_negociacion: "bg-primary/20 text-primary",
   cerrado: "bg-green-500/20 text-green-400",

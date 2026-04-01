@@ -3,18 +3,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { projectPayloadSchema } from "@/lib/validations/project";
-import type { ProjectStatus } from "@/lib/types/database.types";
+import type { ProjectStatus, Currency } from "@/lib/types/database.types";
 
 export interface ProjectPayload {
+  client_id: string;
+  service_id?: string | null;
   name: string;
-  client_name: string;
-  prospect_id?: string | null;
   status: ProjectStatus;
   start_date?: string | null;
   end_date?: string | null;
-  budget?: number | null;
-  paid: boolean;
+  price?: number | null;
+  currency: Currency;
   notes?: string | null;
+  maintenance_amount?: number | null;
+  maintenance_currency: Currency;
+  maintenance_since?: string | null;
+  maintenance_price_updated_at?: string | null;
 }
 
 export async function createProject(payload: ProjectPayload) {

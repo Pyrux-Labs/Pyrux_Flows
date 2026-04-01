@@ -12,13 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UserCheck, MessageSquare } from "lucide-react";
-import type { Prospect } from "@/lib/types/database.types";
+import type { Client } from "@/lib/types/database.types";
 
 interface ClientTableProps {
-  clients: Prospect[];
+  clients: Client[];
   projectCounts: Record<string, number>;
   isLoading: boolean;
-  onEdit: (prospect: Prospect) => void;
+  onEdit: (client: Client) => void;
 }
 
 export function ClientTable({
@@ -53,7 +53,6 @@ export function ClientTable({
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Nombre</TableHead>
-            <TableHead>Empresa</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Teléfono</TableHead>
             <TableHead>Proyectos</TableHead>
@@ -63,7 +62,7 @@ export function ClientTable({
           {clients.map((client) => {
             const count = projectCounts[client.id] ?? 0;
             return (
-              <TableRow key={client.id}>
+              <TableRow key={client.id} className="cursor-pointer hover:bg-secondary/50" onClick={() => onEdit(client)}>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5">
                     {client.name}
@@ -73,9 +72,6 @@ export function ClientTable({
                       </span>
                     )}
                   </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {client.business ?? "—"}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {client.email ?? "—"}

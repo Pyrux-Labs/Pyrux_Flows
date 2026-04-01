@@ -32,7 +32,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
@@ -41,22 +40,27 @@ import {
   useUpdateProject,
   useDeleteProject,
 } from "@/hooks/use-projects";
-import { useProspects } from "@/hooks/use-prospects";
+import { useClients } from "@/hooks/use-clients";
 import { PROJECT_STATUS_LABELS } from "@/lib/constants/labels";
-import type { Project } from "@/lib/types/database.types";
+import type { ProjectWithClient } from "@/lib/types/database.types";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
-  client_name: z.string().min(1, "El cliente es requerido"),
-  prospect_id: z.string().optional().nullable(),
-  status: z.enum(["activo", "pausado", "completado", "cancelado"]),
+  client_id: z.string().uuid("El cliente es requerido"),
+  status: z.enum(["activo", "pausado", "completado", "cancelado", "mantenimiento"]),
   start_date: z.string().optional().nullable(),
   end_date: z.string().optional().nullable(),
-  budgetInput: z.string().optional().refine(
+  priceInput: z.string().optional().refine(
     (v) => !v || (!isNaN(Number(v)) && Number(v) >= 0),
-    "El presupuesto debe ser un número positivo",
+    "El precio debe ser un número positivo",
   ),
-  paid: z.boolean(),
+  currency: z.enum(["ARS", "USD"]),
+  maintenance_amount_input: z.string().optional().refine(
+    (v) => !v || (!isNaN(Number(v)) && Number(v) >= 0),
+    "El monto debe ser un número positivo",
+  ),
+  maintenance_currency: z.enum(["ARS", "USD"]),
+  maintenance_since: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -65,9 +69,8 @@ type FormValues = z.infer<typeof schema>;
 interface ProjectSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  project?: Project | null;
+  project?: ProjectWithClient | null;
 }
-
 
 export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps) {
   const isEditing = !!project;
@@ -78,7 +81,7 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
     mutateAsync: deleteProject.mutateAsync,
     queryKey: ["projects"],
   });
-  const { data: prospects = [] } = useProspects();
+  const { data: clients = [] } = useClients();
 
   const {
     register,
@@ -91,13 +94,15 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
-      client_name: "",
-      prospect_id: null,
+      client_id: "",
       status: "activo",
       start_date: null,
       end_date: null,
-      budgetInput: "",
-      paid: false,
+      priceInput: "",
+      currency: "ARS",
+      maintenance_amount_input: "",
+      maintenance_currency: "USD",
+      maintenance_since: null,
       notes: "",
     },
   });
@@ -108,24 +113,32 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
         project
           ? {
               name: project.name,
-              client_name: project.client_name,
-              prospect_id: project.prospect_id ?? null,
-              status: project.status,
+              client_id: project.client_id ?? "",
+              status: project.status as FormValues["status"],
               start_date: project.start_date ?? null,
               end_date: project.end_date ?? null,
-              budgetInput: project.budget != null ? String(project.budget) : "",
-              paid: project.paid,
+              priceInput: project.price != null ? String(project.price) : "",
+              currency: (project.currency as "ARS" | "USD") ?? "ARS",
+              maintenance_amount_input:
+                project.maintenance_amount != null
+                  ? String(project.maintenance_amount)
+                  : "",
+              maintenance_currency:
+                (project.maintenance_currency as "ARS" | "USD") ?? "USD",
+              maintenance_since: project.maintenance_since ?? null,
               notes: project.notes ?? "",
             }
           : {
               name: "",
-              client_name: "",
-              prospect_id: null,
+              client_id: "",
               status: "activo",
               start_date: null,
               end_date: null,
-              budgetInput: "",
-              paid: false,
+              priceInput: "",
+              currency: "ARS",
+              maintenance_amount_input: "",
+              maintenance_currency: "USD",
+              maintenance_since: null,
               notes: "",
             },
       );
@@ -135,17 +148,23 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
   const isPending = createProject.isPending || updateProject.isPending;
   const { handleOpenChange, warningOpen, confirmDiscard, cancelDiscard } =
     useUnsavedChanges(isDirty, onOpenChange);
+  const status = watch("status");
 
   async function onSubmit(values: FormValues) {
+    const isMantenimiento = values.status === "mantenimiento";
     const payload = {
       name: values.name,
-      client_name: values.client_name,
-      prospect_id: values.prospect_id || null,
+      client_id: values.client_id,
       status: values.status,
       start_date: values.start_date || null,
       end_date: values.end_date || null,
-      budget: values.budgetInput ? parseFloat(values.budgetInput) : null,
-      paid: values.paid,
+      price: values.priceInput ? parseFloat(values.priceInput) : null,
+      currency: values.currency,
+      maintenance_amount: isMantenimiento && values.maintenance_amount_input
+        ? parseFloat(values.maintenance_amount_input)
+        : null,
+      maintenance_currency: isMantenimiento ? values.maintenance_currency : ("ARS" as const),
+      maintenance_since: isMantenimiento ? values.maintenance_since || null : null,
       notes: values.notes || null,
     };
 
@@ -187,49 +206,33 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="client_name">Cliente *</Label>
-              <Input
-                id="client_name"
-                {...register("client_name")}
-                placeholder="Nombre del cliente"
-              />
-              {errors.client_name && (
-                <p className="text-xs text-destructive">
-                  {errors.client_name.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Prospecto vinculado</Label>
+              <Label>Cliente *</Label>
               <Select
-                value={watch("prospect_id") ?? "_none"}
-                onValueChange={(v) =>
-                  setValue("prospect_id", v === "_none" ? null : v)
-                }
+                value={watch("client_id") || "_none"}
+                onValueChange={(v) => setValue("client_id", v === "_none" ? "" : v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Ninguno" />
+                  <SelectValue placeholder="Seleccioná un cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_none">Ninguno</SelectItem>
-                  {prospects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                      {p.business ? ` — ${p.business}` : ""}
+                  <SelectItem value="_none">Seleccioná un cliente</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {errors.client_id && (
+                <p className="text-xs text-destructive">{errors.client_id.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label>Estado</Label>
               <Select
                 value={watch("status")}
-                onValueChange={(v) =>
-                  setValue("status", v as FormValues["status"])
-                }
+                onValueChange={(v) => setValue("status", v as FormValues["status"])}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -247,11 +250,7 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="start_date">Inicio</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  {...register("start_date")}
-                />
+                <Input id="start_date" type="date" {...register("start_date")} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="end_date">Fin</Label>
@@ -259,31 +258,83 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="budgetInput">Presupuesto</Label>
-              <Input
-                id="budgetInput"
-                type="number"
-                step="0.01"
-                min="0"
-                {...register("budgetInput")}
-                placeholder="0"
-              />
-              {errors.budgetInput && (
-                <p className="text-xs text-destructive">
-                  {errors.budgetInput.message}
-                </p>
-              )}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="priceInput">Precio</Label>
+                <Input
+                  id="priceInput"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  {...register("priceInput")}
+                  placeholder="0"
+                />
+                {errors.priceInput && (
+                  <p className="text-xs text-destructive">{errors.priceInput.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Moneda</Label>
+                <Select
+                  value={watch("currency")}
+                  onValueChange={(v) => setValue("currency", v as "ARS" | "USD")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ARS">ARS</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <Label htmlFor="paid">Pagado</Label>
-              <Switch
-                id="paid"
-                checked={watch("paid")}
-                onCheckedChange={(v) => setValue("paid", v)}
-              />
-            </div>
+            {status === "mantenimiento" && (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Mantenimiento mensual
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="maintenance_amount_input">Monto</Label>
+                    <Input
+                      id="maintenance_amount_input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      {...register("maintenance_amount_input")}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Moneda</Label>
+                    <Select
+                      value={watch("maintenance_currency")}
+                      onValueChange={(v) =>
+                        setValue("maintenance_currency", v as "ARS" | "USD")
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ARS">ARS</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maintenance_since">Desde</Label>
+                  <Input
+                    id="maintenance_since"
+                    type="date"
+                    {...register("maintenance_since")}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
