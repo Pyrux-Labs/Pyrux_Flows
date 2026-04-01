@@ -1,5 +1,5 @@
-import { FinanzasShell } from "@/components/modules/finanzas/finanzas-shell";
+import { MovementsShell } from "@/components/modules/finanzas/movements-shell";
 
 export default function FinanzasPage() {
-  return <FinanzasShell />;
+  return <MovementsShell />;
 }

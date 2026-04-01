@@ -12,19 +12,34 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Pencil, Receipt, RefreshCw, AlertCircle } from "lucide-react";
+import { Pencil, TrendingUp, RefreshCw, AlertCircle, ArrowUpDown } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { EXPENSE_CATEGORY_LABELS } from "@/lib/constants/labels";
-import type { Movement, ProjectWithClient } from "@/lib/types/database.types";
+import {
+  MOVEMENT_CREDIT_CATEGORY_LABELS,
+  MOVEMENT_DEBIT_CATEGORY_LABELS,
+} from "@/lib/constants/labels";
+import type { Movement, MovementType, ProjectWithClient } from "@/lib/types/database.types";
 
-interface ExpenseTableProps {
-  expenses: Movement[];
+interface MovementsTableProps {
+  movements: Movement[];
   projects: ProjectWithClient[];
   isLoading: boolean;
+  filter: MovementType | "all";
   onEdit: (movement: Movement) => void;
 }
 
-export function ExpenseTable({ expenses, projects, isLoading, onEdit }: ExpenseTableProps) {
+const CATEGORY_LABELS: Record<MovementType, Record<string, string>> = {
+  credit: MOVEMENT_CREDIT_CATEGORY_LABELS,
+  debit: MOVEMENT_DEBIT_CATEGORY_LABELS,
+};
+
+export function MovementsTable({
+  movements,
+  projects,
+  isLoading,
+  filter,
+  onEdit,
+}: MovementsTableProps) {
   const projectMap = Object.fromEntries(projects.map((p) => [p.id, p]));
 
   if (isLoading) {
@@ -37,12 +52,19 @@ export function ExpenseTable({ expenses, projects, isLoading, onEdit }: ExpenseT
     );
   }
 
-  if (!expenses.length) {
+  const emptyTitle =
+    filter === "credit"
+      ? "Sin ingresos este mes"
+      : filter === "debit"
+        ? "Sin gastos este mes"
+        : "Sin movimientos este mes";
+
+  if (!movements.length) {
     return (
       <EmptyState
-        icon={Receipt}
-        title="Sin gastos este mes"
-        description="Los gastos se sincronizan automáticamente desde Mercado Pago."
+        icon={TrendingUp}
+        title={emptyTitle}
+        description="Los movimientos se sincronizan automáticamente desde Mercado Pago."
       />
     );
   }
@@ -52,6 +74,7 @@ export function ExpenseTable({ expenses, projects, isLoading, onEdit }: ExpenseT
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
+            {filter === "all" && <TableHead className="w-24">Tipo</TableHead>}
             <TableHead>Descripción</TableHead>
             <TableHead>Proyecto</TableHead>
             <TableHead className="text-right">Monto</TableHead>
@@ -61,11 +84,26 @@ export function ExpenseTable({ expenses, projects, isLoading, onEdit }: ExpenseT
           </TableRow>
         </TableHeader>
         <TableBody>
-          {expenses.map((entry) => {
+          {movements.map((entry) => {
             const project = entry.project_id ? projectMap[entry.project_id] : null;
             const isUnclassified = !entry.category && !entry.project_id;
+            const categoryLabels = CATEGORY_LABELS[entry.type];
             return (
               <TableRow key={entry.id} className="hover:bg-secondary/50">
+                {filter === "all" && (
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={
+                        entry.type === "credit"
+                          ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+                          : "text-red-400 border-red-500/30 bg-red-500/10"
+                      }
+                    >
+                      {entry.type === "credit" ? "↑ Ingreso" : "↓ Gasto"}
+                    </Badge>
+                  </TableCell>
+                )}
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-1.5">
                     {isUnclassified && (
@@ -93,7 +131,7 @@ export function ExpenseTable({ expenses, projects, isLoading, onEdit }: ExpenseT
                   <div className="flex items-center gap-1.5">
                     {entry.category ? (
                       <Badge variant="secondary" className="text-xs">
-                        {EXPENSE_CATEGORY_LABELS[entry.category] ?? entry.category}
+                        {categoryLabels[entry.category] ?? entry.category}
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground text-xs">—</span>

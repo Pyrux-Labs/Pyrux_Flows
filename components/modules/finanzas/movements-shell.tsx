@@ -6,31 +6,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { MonthNav } from "@/components/shared/month-nav";
-import { ExpenseTable } from "./expense-table";
-import { ExpenseSummary } from "./expense-summary";
-import { ExpenseSheet } from "./expense-sheet";
-import { useExpenses } from "@/hooks/use-expenses";
+import { MovementsTable } from "./movements-table";
+import { MovementsSummary } from "./movements-summary";
+import { MovementSheet } from "./movement-sheet";
+import { useMovements, useSyncMovements } from "@/hooks/use-movements";
 import { useProjects } from "@/hooks/use-projects";
-import { useSyncMovements } from "@/hooks/use-movements";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
-import type { Movement } from "@/lib/types/database.types";
+import { cn } from "@/lib/utils";
+import type { Movement, MovementType } from "@/lib/types/database.types";
 
-export function GastosShell() {
+type Filter = MovementType | "all";
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "credit", label: "Ingresos" },
+  { value: "debit", label: "Gastos" },
+];
+
+export function MovementsShell() {
   const [month, setMonth] = useState<Date>(() => startOfMonth(new Date()));
+  const [filter, setFilter] = useState<Filter>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null);
 
-  const { data: expenses = [], isLoading } = useExpenses(month);
+  const { data: movements = [], isLoading } = useMovements(
+    month,
+    filter === "all" ? undefined : filter,
+  );
   const { data: projects = [] } = useProjects();
   const sync = useSyncMovements();
-  const { visibleItems: visibleExpenses, hasMore, remaining, loadMore } = usePagination(expenses);
+  const { visibleItems, hasMore, remaining, loadMore } = usePagination(movements);
 
-  const totalARS = expenses
+  const totalARS = movements
     .filter((e) => e.currency === "ARS")
     .reduce((sum, e) => sum + e.amount, 0);
-  const totalUSD = expenses
+  const totalUSD = movements
     .filter((e) => e.currency === "USD")
     .reduce((sum, e) => sum + e.amount, 0);
 
@@ -42,7 +54,9 @@ export function GastosShell() {
   async function handleSync() {
     try {
       const result = await sync.mutateAsync();
-      toast.success(`Sincronizado: ${result.synced} movimiento${result.synced !== 1 ? "s" : ""}`);
+      toast.success(
+        `Sincronizado: ${result.synced} movimiento${result.synced !== 1 ? "s" : ""}`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al sincronizar");
     }
@@ -53,9 +67,9 @@ export function GastosShell() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Gastos</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Finanzas</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Egresos sincronizados desde Mercado Pago
+            Movimientos sincronizados desde Mercado Pago
           </p>
         </div>
         <Button
@@ -64,15 +78,36 @@ export function GastosShell() {
           variant="outline"
           disabled={sync.isPending}
         >
-          <RefreshCw className={`h-4 w-4 mr-1.5 ${sync.isPending ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 mr-1.5 ${sync.isPending ? "animate-spin" : ""}`}
+          />
           Sincronizar
         </Button>
       </div>
 
-      {/* Month nav + totals */}
+      {/* Controls row */}
       <div className="flex flex-wrap items-center gap-4">
         <MonthNav month={month} onChange={setMonth} />
-        {!isLoading && expenses.length > 0 && (
+
+        {/* Type filter */}
+        <div className="flex items-center rounded-md border border-border bg-card p-0.5 gap-0.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={cn(
+                "px-3 py-1 rounded text-sm transition-colors",
+                filter === f.value
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {!isLoading && movements.length > 0 && (
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">Total:</span>
             {totalARS > 0 && (
@@ -100,10 +135,11 @@ export function GastosShell() {
         </TabsList>
 
         <TabsContent value="tabla" className="space-y-3">
-          <ExpenseTable
-            expenses={visibleExpenses}
+          <MovementsTable
+            movements={visibleItems}
             projects={projects}
             isLoading={isLoading}
+            filter={filter}
             onEdit={handleEdit}
           />
           {hasMore && (
@@ -116,11 +152,15 @@ export function GastosShell() {
         </TabsContent>
 
         <TabsContent value="resumen">
-          <ExpenseSummary expenses={expenses} isLoading={isLoading} />
+          <MovementsSummary
+            movements={movements}
+            filter={filter}
+            isLoading={isLoading}
+          />
         </TabsContent>
       </Tabs>
 
-      <ExpenseSheet
+      <MovementSheet
         open={sheetOpen}
         onOpenChange={(open) => {
           setSheetOpen(open);

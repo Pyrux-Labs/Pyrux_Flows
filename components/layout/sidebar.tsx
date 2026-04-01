@@ -8,7 +8,6 @@ import {
   UserCheck,
   FolderKanban,
   TrendingUp,
-  Receipt,
   Tag,
   Settings,
 } from "lucide-react";
@@ -20,7 +19,6 @@ const navItems = [
   { href: "/clientes", label: "Clientes", icon: UserCheck },
   { href: "/proyectos", label: "Proyectos", icon: FolderKanban },
   { href: "/finanzas", label: "Finanzas", icon: TrendingUp },
-  { href: "/gastos", label: "Gastos", icon: Receipt },
   { href: "/tarifas", label: "Tarifas", icon: Tag },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];

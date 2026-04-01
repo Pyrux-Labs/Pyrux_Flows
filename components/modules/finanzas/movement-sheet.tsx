@@ -25,7 +25,10 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useEnrichMovement } from "@/hooks/use-movements";
 import { useProjects } from "@/hooks/use-projects";
-import { MOVEMENT_CREDIT_CATEGORY_LABELS } from "@/lib/constants/labels";
+import {
+  MOVEMENT_CREDIT_CATEGORY_LABELS,
+  MOVEMENT_DEBIT_CATEGORY_LABELS,
+} from "@/lib/constants/labels";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Movement } from "@/lib/types/database.types";
 
@@ -39,13 +42,13 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-interface IncomeSheetProps {
+interface MovementSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   movement: Movement | null;
 }
 
-export function IncomeSheet({ open, onOpenChange, movement }: IncomeSheetProps) {
+export function MovementSheet({ open, onOpenChange, movement }: MovementSheetProps) {
   const enrich = useEnrichMovement();
   const { data: projects = [] } = useProjects();
 
@@ -83,11 +86,24 @@ export function IncomeSheet({ open, onOpenChange, movement }: IncomeSheetProps) 
     }
   }
 
+  const categoryLabels =
+    movement?.type === "debit"
+      ? MOVEMENT_DEBIT_CATEGORY_LABELS
+      : MOVEMENT_CREDIT_CATEGORY_LABELS;
+
+  const sheetTitle =
+    movement?.type === "debit" ? "Clasificar gasto" : "Clasificar ingreso";
+
+  const ruleLabel =
+    movement?.type === "debit"
+      ? "Aplicar automáticamente a futuros gastos de este origen"
+      : "Aplicar automáticamente a futuros ingresos de este origen";
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0">
         <SheetHeader className="pb-4 border-b border-border">
-          <SheetTitle>Clasificar ingreso</SheetTitle>
+          <SheetTitle>{sheetTitle}</SheetTitle>
         </SheetHeader>
 
         {movement && (
@@ -142,7 +158,7 @@ export function IncomeSheet({ open, onOpenChange, movement }: IncomeSheetProps) 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Sin categoría</SelectItem>
-                  {Object.entries(MOVEMENT_CREDIT_CATEGORY_LABELS).map(([value, label]) => (
+                  {Object.entries(categoryLabels).map(([value, label]) => (
                     <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
@@ -180,9 +196,7 @@ export function IncomeSheet({ open, onOpenChange, movement }: IncomeSheetProps) 
               <div className="flex items-center justify-between pt-1">
                 <div>
                   <Label>Recordar asignación</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Aplicar automáticamente a futuros ingresos de este origen
-                  </p>
+                  <p className="text-xs text-muted-foreground">{ruleLabel}</p>
                 </div>
                 <Switch
                   checked={watch("save_as_rule")}
