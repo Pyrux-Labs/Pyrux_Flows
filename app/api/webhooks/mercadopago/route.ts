@@ -136,3 +136,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true, error: String(err) });
   }
 }
+
+// MP pings the URL with GET to verify it's alive before activating the webhook
+export function GET() {
+  return NextResponse.json({ ok: true });
+}
