@@ -191,7 +191,7 @@ export default async function DashboardPage() {
         />
         <Widget
           icon={FolderKanban}
-          label="Proyectos activos"
+          label="En desarrollo"
           primary={String(data.activeProjects)}
           subtext="en curso"
           href="/proyectos"

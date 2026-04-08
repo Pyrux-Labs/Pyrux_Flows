@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, FolderKanban } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { PROJECT_STATUS_LABELS } from "@/lib/constants/labels";
 import type { ProjectWithClient, ProjectStatus } from "@/lib/types/database.types";
 
 interface ProjectKanbanProps {
@@ -14,13 +15,9 @@ interface ProjectKanbanProps {
   onEdit: (project: ProjectWithClient) => void;
 }
 
-const COLUMNS: { status: ProjectStatus; label: string }[] = [
-  { status: "desarrollo", label: "Desarrollo" },
-  { status: "pausado", label: "Pausado" },
-  { status: "mantenimiento", label: "Mantenimiento" },
-  { status: "completado", label: "Completado" },
-  { status: "cancelado", label: "Cancelado" },
-];
+const COLUMNS = (Object.entries(PROJECT_STATUS_LABELS) as [ProjectStatus, string][]).map(
+  ([status, label]) => ({ status, label }),
+);
 
 function ProjectCard({
   project,
