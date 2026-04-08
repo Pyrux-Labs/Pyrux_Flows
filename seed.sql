@@ -105,7 +105,7 @@ VALUES
     'b0000002-0000-0000-0000-000000000001', -- Pyrux
     NULL,
     'Goal Planner',
-    'activo',
+    'desarrollo',
     '2026-01-01',
     NULL, 'USD',
     'Producto interno Pyrux. En desarrollo. goalplanner.com.ar',

@@ -79,7 +79,7 @@ export const SECTOR_LABELS: Record<string, string> = {
 
 
 export const PROJECT_STATUS_LABELS: Record<string, string> = {
-  activo: "Activo",
+  desarrollo: "Desarrollo",
   pausado: "Pausado",
   completado: "Completado",
   cancelado: "Cancelado",
@@ -90,8 +90,8 @@ export const PROJECT_STATUS_CONFIG: Record<
   string,
   { label: string; className: string }
 > = {
-  activo: {
-    label: "Activo",
+  desarrollo: {
+    label: "Desarrollo",
     className: "bg-green-500/15 text-green-400 border-green-500/20",
   },
   pausado: {

@@ -63,7 +63,7 @@ CREATE TYPE sector_enum AS ENUM (
 
 
 CREATE TYPE project_status_enum AS ENUM (
-  'activo', 'pausado', 'completado', 'cancelado', 'mantenimiento'
+  'desarrollo', 'pausado', 'completado', 'cancelado', 'mantenimiento'
 );
 
 CREATE TYPE currency_enum AS ENUM ('ARS', 'USD');
@@ -169,7 +169,7 @@ CREATE TABLE projects (
   service_id  uuid REFERENCES services (id) ON DELETE SET NULL,
 
   name        text NOT NULL,
-  status      project_status_enum NOT NULL DEFAULT 'activo',
+  status      project_status_enum NOT NULL DEFAULT 'desarrollo',
   start_date  date,
   end_date    date,
   price       numeric(12, 2),

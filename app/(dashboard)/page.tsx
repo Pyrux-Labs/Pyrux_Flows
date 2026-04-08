@@ -74,7 +74,7 @@ async function getDashboardData() {
     supabase
       .from("projects")
       .select("id", { count: "exact", head: true })
-      .eq("status", "activo"),
+      .eq("status", "desarrollo"),
     supabase
       .from("prospects")
       .select("id, name, status, created_at")

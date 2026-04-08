@@ -47,7 +47,7 @@ import type { ProjectWithClient } from "@/lib/types/database.types";
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
   client_id: z.string().uuid("El cliente es requerido"),
-  status: z.enum(["activo", "pausado", "completado", "cancelado", "mantenimiento"]),
+  status: z.enum(["desarrollo", "pausado", "completado", "cancelado", "mantenimiento"]),
   start_date: z.string().optional().nullable(),
   end_date: z.string().optional().nullable(),
   priceInput: z.string().optional().refine(
@@ -95,7 +95,7 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
     defaultValues: {
       name: "",
       client_id: "",
-      status: "activo",
+      status: "desarrollo",
       start_date: null,
       end_date: null,
       priceInput: "",
@@ -131,7 +131,7 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
           : {
               name: "",
               client_id: "",
-              status: "activo",
+              status: "desarrollo",
               start_date: null,
               end_date: null,
               priceInput: "",

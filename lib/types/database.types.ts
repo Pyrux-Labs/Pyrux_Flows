@@ -39,7 +39,7 @@ export type Sector =
 
 
 export type ProjectStatus =
-  | "activo"
+  | "desarrollo"
   | "pausado"
   | "completado"
   | "cancelado"

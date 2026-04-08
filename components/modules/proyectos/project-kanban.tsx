@@ -15,7 +15,7 @@ interface ProjectKanbanProps {
 }
 
 const COLUMNS: { status: ProjectStatus; label: string }[] = [
-  { status: "activo", label: "Activo" },
+  { status: "desarrollo", label: "Desarrollo" },
   { status: "pausado", label: "Pausado" },
   { status: "mantenimiento", label: "Mantenimiento" },
   { status: "completado", label: "Completado" },

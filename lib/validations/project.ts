@@ -4,7 +4,7 @@ export const projectPayloadSchema = z.object({
   client_id: z.string().uuid(),
   service_id: z.string().uuid().nullable().optional(),
   name: z.string().min(1),
-  status: z.enum(["activo", "pausado", "completado", "cancelado", "mantenimiento"]),
+  status: z.enum(["desarrollo", "pausado", "completado", "cancelado", "mantenimiento"]),
   start_date: z.string().nullable().optional(),
   end_date: z.string().nullable().optional(),
   price: z.number().nonnegative().nullable().optional(),
