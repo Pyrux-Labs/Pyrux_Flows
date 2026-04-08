@@ -22,6 +22,7 @@ import { Users } from "lucide-react";
 import { ProspectCard } from "./prospect-card";
 import { useUpdateProspect } from "@/hooks/use-prospects";
 import { useQueryClient } from "@tanstack/react-query";
+import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import type { Prospect, ProspectStatus } from "@/lib/types/database.types";
 
 interface ProspectKanbanProps {
@@ -30,14 +31,12 @@ interface ProspectKanbanProps {
   onEdit: (prospect: Prospect) => void;
 }
 
-const COLUMNS: { status: ProspectStatus; label: string }[] = [
-  { status: "contactado", label: "Contactado" },
-  { status: "en_negociacion", label: "En negociación" },
-  { status: "cerrado", label: "Cerrado" },
-  { status: "perdido", label: "Perdido" },
-];
+const COLUMNS = (Object.entries(PROSPECT_STATUS_LABELS) as [ProspectStatus, string][]).map(
+  ([status, label]) => ({ status, label }),
+);
 
 const COLUMN_COLORS: Record<ProspectStatus, string> = {
+  sin_contactar: "bg-slate-500/20 text-slate-400",
   contactado: "bg-yellow-500/20 text-yellow-400",
   en_negociacion: "bg-primary/20 text-primary",
   cerrado: "bg-green-500/20 text-green-400",
@@ -103,7 +102,7 @@ export function ProspectKanban({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {COLUMNS.map((col) => (
           <div key={col.status} className="space-y-2">
             <Skeleton className="h-6 w-24 rounded-full" />

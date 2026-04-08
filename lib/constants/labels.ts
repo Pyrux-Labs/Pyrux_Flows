@@ -2,6 +2,7 @@
 // Keys match database enum values; values are the Spanish display strings.
 
 export const PROSPECT_STATUS_LABELS: Record<string, string> = {
+  sin_contactar: "Sin contactar",
   contactado: "Contactado",
   en_negociacion: "En negociación",
   cerrado: "Cerrado",
@@ -12,6 +13,10 @@ export const PROSPECT_STATUS_CONFIG: Record<
   string,
   { label: string; className: string }
 > = {
+  sin_contactar: {
+    label: "Sin contactar",
+    className: "bg-slate-500/15 text-slate-400 border-slate-500/20",
+  },
   contactado: {
     label: "Contactado",
     className: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
@@ -29,6 +34,27 @@ export const PROSPECT_STATUS_CONFIG: Record<
     className: "bg-muted text-muted-foreground border-border",
   },
 };
+
+export const SECTOR_VALUES = [
+  "contabilidad",
+  "construccion",
+  "consultoria",
+  "dental",
+  "educacion",
+  "estetica",
+  "fitness",
+  "gastronomia",
+  "inmobiliaria",
+  "legal",
+  "logistica",
+  "medico",
+  "moda",
+  "ong",
+  "retail",
+  "tecnologia",
+  "turismo",
+  "otro",
+] as const;
 
 export const SECTOR_LABELS: Record<string, string> = {
   contabilidad: "Contabilidad",
@@ -51,39 +77,6 @@ export const SECTOR_LABELS: Record<string, string> = {
   otro: "Otro",
 };
 
-export const CLIENT_STATUS_LABELS: Record<string, string> = {
-  onboarding: "Onboarding",
-  en_desarrollo: "En desarrollo",
-  entregado: "Entregado",
-  mantenimiento: "Mantenimiento",
-  inactivo: "Inactivo",
-};
-
-export const CLIENT_STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string }
-> = {
-  onboarding: {
-    label: "Onboarding",
-    className: "bg-blue-500/15 text-blue-400 border-blue-500/20",
-  },
-  en_desarrollo: {
-    label: "En desarrollo",
-    className: "bg-primary/15 text-primary border-primary/20",
-  },
-  entregado: {
-    label: "Entregado",
-    className: "bg-green-500/15 text-green-400 border-green-500/20",
-  },
-  mantenimiento: {
-    label: "Mantenimiento",
-    className: "bg-yellow-500/15 text-yellow-400 border-yellow-500/20",
-  },
-  inactivo: {
-    label: "Inactivo",
-    className: "bg-muted text-muted-foreground border-border",
-  },
-};
 
 export const PROJECT_STATUS_LABELS: Record<string, string> = {
   activo: "Activo",
@@ -137,19 +130,6 @@ export const MOVEMENT_DEBIT_CATEGORY_LABELS: Record<string, string> = {
   otro: "Otro",
 };
 
-// Aliases for backwards compat with summary components
-export const INCOME_CATEGORY_LABELS = MOVEMENT_CREDIT_CATEGORY_LABELS;
-export const EXPENSE_CATEGORY_LABELS = MOVEMENT_DEBIT_CATEGORY_LABELS;
-
-export const INCOME_CATEGORY_EXTENDED_LABELS: Record<string, string> = {
-  ...MOVEMENT_CREDIT_CATEGORY_LABELS,
-  sin_categoria: "Sin categoría",
-};
-
-export const EXPENSE_CATEGORY_EXTENDED_LABELS: Record<string, string> = {
-  ...MOVEMENT_DEBIT_CATEGORY_LABELS,
-  sin_categoria: "Sin categoría",
-};
 
 export const SERVICE_CATEGORY_LABELS: Record<string, string> = {
   web: "Web",

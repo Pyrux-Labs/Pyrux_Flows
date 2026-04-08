@@ -40,37 +40,15 @@ import {
   useUpdateProspect,
   useDeleteProspect,
 } from "@/hooks/use-prospects";
-import { SECTOR_LABELS, PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
+import { SECTOR_LABELS, SECTOR_VALUES, PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import type { Prospect } from "@/lib/types/database.types";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
-  sector: z
-    .enum([
-      "contabilidad",
-      "construccion",
-      "consultoria",
-      "dental",
-      "educacion",
-      "estetica",
-      "fitness",
-      "gastronomia",
-      "inmobiliaria",
-      "legal",
-      "logistica",
-      "medico",
-      "moda",
-      "ong",
-      "retail",
-      "tecnologia",
-      "turismo",
-      "otro",
-    ])
-    .optional()
-    .nullable(),
+  sector: z.enum(SECTOR_VALUES).optional().nullable(),
   email: z.string().email("Email inválido").optional().or(z.literal("")).nullable(),
   phone: z.string().optional().nullable(),
-  status: z.enum(["contactado", "en_negociacion", "cerrado", "perdido"]),
+  status: z.enum(["sin_contactar", "contactado", "en_negociacion", "cerrado", "perdido"]),
   notes: z.string().optional().nullable(),
 });
 
@@ -106,7 +84,7 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
       sector: null,
       email: "",
       phone: "",
-      status: "contactado",
+      status: "sin_contactar",
       notes: "",
     },
   });
@@ -128,7 +106,7 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
               sector: null,
               email: "",
               phone: "",
-              status: "contactado",
+              status: "sin_contactar",
               notes: "",
             },
       );
@@ -191,7 +169,7 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
               <Select
                 value={watch("sector") ?? "_none"}
                 onValueChange={(v) =>
-                  setValue("sector", v === "_none" ? null : (v as FormValues["sector"]))
+                  setValue("sector", v === "_none" ? null : (v as FormValues["sector"]), { shouldDirty: true })
                 }
               >
                 <SelectTrigger>
@@ -230,7 +208,7 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
               <Label>Estado</Label>
               <Select
                 value={watch("status")}
-                onValueChange={(v) => setValue("status", v as FormValues["status"])}
+                onValueChange={(v) => setValue("status", v as FormValues["status"], { shouldDirty: true })}
               >
                 <SelectTrigger>
                   <SelectValue />

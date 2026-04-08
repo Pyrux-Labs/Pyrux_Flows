@@ -1,8 +1,35 @@
 -- ============================================================
 --  SCHEMA v2: Pyrux Flows — CRM + Finanzas
 --  Compatible con Supabase (PostgreSQL 15+)
---  Ejecutar en orden — las FK dependen de tablas anteriores.
+--  Incluye teardown completo — se puede correr desde cero.
+--  Orden: 1) este archivo  2) seed.sql
 -- ============================================================
+
+
+-- ------------------------------------------------------------
+-- TEARDOWN — limpia todo antes de recrear
+-- ------------------------------------------------------------
+
+DROP TABLE IF EXISTS settings          CASCADE;
+DROP TABLE IF EXISTS mp_rules          CASCADE;
+DROP TABLE IF EXISTS movements         CASCADE;
+DROP TABLE IF EXISTS project_payments  CASCADE;
+DROP TABLE IF EXISTS projects          CASCADE;
+DROP TABLE IF EXISTS services          CASCADE;
+DROP TABLE IF EXISTS clients           CASCADE;
+DROP TABLE IF EXISTS prospects         CASCADE;
+
+DROP FUNCTION IF EXISTS set_updated_at()     CASCADE;
+DROP FUNCTION IF EXISTS prospect_to_client() CASCADE;
+
+DROP TYPE IF EXISTS movement_type_enum      CASCADE;
+DROP TYPE IF EXISTS payment_status_enum     CASCADE;
+DROP TYPE IF EXISTS service_unit_enum       CASCADE;
+DROP TYPE IF EXISTS service_category_enum   CASCADE;
+DROP TYPE IF EXISTS currency_enum           CASCADE;
+DROP TYPE IF EXISTS project_status_enum     CASCADE;
+DROP TYPE IF EXISTS sector_enum             CASCADE;
+DROP TYPE IF EXISTS prospect_status_enum    CASCADE;
 
 
 -- ------------------------------------------------------------
@@ -10,7 +37,7 @@
 -- ------------------------------------------------------------
 
 CREATE TYPE prospect_status_enum AS ENUM (
-  'contactado', 'en_negociacion', 'cerrado', 'perdido'
+  'sin_contactar', 'contactado', 'en_negociacion', 'cerrado', 'perdido'
 );
 
 CREATE TYPE sector_enum AS ENUM (
@@ -34,9 +61,6 @@ CREATE TYPE sector_enum AS ENUM (
   'otro'
 );
 
-CREATE TYPE client_status_enum AS ENUM (
-  'onboarding', 'en_desarrollo', 'entregado', 'mantenimiento', 'inactivo'
-);
 
 CREATE TYPE project_status_enum AS ENUM (
   'activo', 'pausado', 'completado', 'cancelado', 'mantenimiento'
@@ -97,7 +121,6 @@ CREATE TABLE clients (
   email       text,
   phone       text,
   sector      sector_enum,
-  status      client_status_enum NOT NULL DEFAULT 'onboarding',
   started_at  date NOT NULL DEFAULT CURRENT_DATE,
   notes       text
 );
@@ -286,7 +309,6 @@ COMMENT ON TABLE settings IS 'Configuración general. opening_balance_ars es el 
 -- ------------------------------------------------------------
 
 CREATE INDEX idx_prospects_status           ON prospects (status);
-CREATE INDEX idx_clients_status             ON clients (status);
 CREATE INDEX idx_clients_prospect           ON clients (prospect_id);
 CREATE INDEX idx_projects_client            ON projects (client_id);
 CREATE INDEX idx_projects_status            ON projects (status);
