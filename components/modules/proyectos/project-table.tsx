@@ -142,10 +142,19 @@ export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps)
                 {project.end_date ? formatDate(project.end_date) : "—"}
               </TableCell>
 
-              <TableCell className="text-right font-mono text-sm">
-                {project.price != null
-                  ? formatCurrency(project.price, project.currency)
-                  : "—"}
+              <TableCell className="text-right text-sm">
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="font-mono">
+                    {project.price != null
+                      ? formatCurrency(project.price, project.currency)
+                      : "—"}
+                  </span>
+                  {project.maintenance_amount != null && (
+                    <span className="text-xs text-primary font-mono">
+                      {formatCurrency(project.maintenance_amount, project.maintenance_currency)}/mes
+                    </span>
+                  )}
+                </div>
               </TableCell>
 
               <TableCell>

@@ -43,13 +43,18 @@ function ProjectCard({
       </div>
       <p className="text-xs text-muted-foreground">{project.client?.name ?? "—"}</p>
       <div className="flex items-center justify-between pt-0.5">
-        {project.price != null ? (
-          <span className="text-xs font-mono text-foreground">
-            {formatCurrency(project.price, project.currency)}
-          </span>
-        ) : (
-          <span />
-        )}
+        <div className="flex flex-col gap-0.5">
+          {project.price != null && (
+            <span className="text-xs font-mono text-foreground">
+              {formatCurrency(project.price, project.currency)}
+            </span>
+          )}
+          {project.maintenance_amount != null && (
+            <span className="text-xs font-mono text-primary">
+              {formatCurrency(project.maintenance_amount, project.maintenance_currency)}/mes
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
