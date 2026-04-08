@@ -11,6 +11,7 @@ export type Json =
 // -------------------------------------------------------------------
 
 export type ProspectStatus =
+  | "sin_contactar"
   | "contactado"
   | "en_negociacion"
   | "cerrado"
@@ -36,12 +37,6 @@ export type Sector =
   | "turismo"
   | "otro";
 
-export type ClientStatus =
-  | "onboarding"
-  | "en_desarrollo"
-  | "entregado"
-  | "mantenimiento"
-  | "inactivo";
 
 export type ProjectStatus =
   | "activo"
@@ -89,7 +84,6 @@ export interface Client {
   email: string | null;
   phone: string | null;
   sector: Sector | null;
-  status: ClientStatus;
   started_at: string;
   notes: string | null;
 }

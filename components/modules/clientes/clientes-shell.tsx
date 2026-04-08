@@ -3,10 +3,12 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClientTable } from "./client-table";
+import { ClientSheet } from "./client-sheet";
 import { useClients } from "@/hooks/use-clients";
 import { useProjects } from "@/hooks/use-projects";
 import { usePagination } from "@/hooks/use-pagination";
 import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import type { Client } from "@/lib/types/database.types";
 
 export function ClientesShell() {
@@ -48,13 +50,29 @@ export function ClientesShell() {
     setSheetOpen(true);
   }
 
+  function handleNew() {
+    setEditingClient(null);
+    setSheetOpen(true);
+  }
+
+  function handleSheetChange(open: boolean) {
+    setSheetOpen(open);
+    if (!open) setEditingClient(null);
+  }
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Clientes</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Clientes activos y en mantenimiento
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Clientes</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Clientes activos y en mantenimiento
+          </p>
+        </div>
+        <Button size="sm" onClick={handleNew}>
+          <Plus className="h-4 w-4 mr-1" />
+          Nuevo cliente
+        </Button>
       </div>
 
       <ClientTable
@@ -71,6 +89,12 @@ export function ClientesShell() {
           </Button>
         </div>
       )}
+
+      <ClientSheet
+        open={sheetOpen}
+        onOpenChange={handleSheetChange}
+        client={editingClient}
+      />
     </div>
   );
 }
