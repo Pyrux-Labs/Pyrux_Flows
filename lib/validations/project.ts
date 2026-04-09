@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const projectPayloadSchema = z.object({
-  client_id: z.string().uuid(),
-  service_id: z.string().uuid().nullable().optional(),
+  client_id: z.string().min(1),
+  service_id: z.string().min(1).nullable().optional(),
   name: z.string().min(1),
   status: z.enum(["desarrollo", "pausado", "completado", "cancelado", "mantenimiento"]),
   start_date: z.string().nullable().optional(),

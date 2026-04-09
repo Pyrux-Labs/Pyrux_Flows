@@ -46,7 +46,7 @@ import type { ProjectWithClient } from "@/lib/types/database.types";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
-  client_id: z.string().uuid("El cliente es requerido"),
+  client_id: z.string().min(1, "El cliente es requerido"),
   status: z.enum(["desarrollo", "pausado", "completado", "cancelado", "mantenimiento"]),
   start_date: z.string().optional().nullable(),
   end_date: z.string().optional().nullable(),
