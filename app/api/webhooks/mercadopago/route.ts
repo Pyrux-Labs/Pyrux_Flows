@@ -31,7 +31,7 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-function validateSignature(req: NextRequest, body: string): boolean {
+function validateSignature(req: NextRequest, _body: string): boolean {
   const secret = process.env.MP_WEBHOOK_SECRET;
   if (!secret) return true; // skip validation if not configured yet
 
