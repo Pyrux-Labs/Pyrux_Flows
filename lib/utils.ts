@@ -20,12 +20,13 @@ export function formatCurrency(amount: number, currency: "ARS" | "USD"): string 
 }
 
 /**
- * Formats a date-only string (YYYY-MM-DD) as dd/MM/yyyy.
- * Appends T00:00:00 to avoid UTC-offset shifting the date.
+ * Formats a date string as dd/MM/yyyy.
+ * Always slices the YYYY-MM-DD part and parses as local time to avoid
+ * UTC-offset shifting (e.g. timestamptz from Supabase arriving as midnight UTC
+ * would otherwise render as the previous day in Argentina UTC-3).
  */
 export function formatDate(dateStr: string): string {
-  // Works with both "YYYY-MM-DD" and full ISO timestamps from Supabase
-  const d = new Date(dateStr.includes("T") || dateStr.includes(" ") ? dateStr : dateStr + "T00:00:00");
+  const d = new Date(dateStr.slice(0, 10) + "T00:00:00");
   return format(d, "dd/MM/yyyy");
 }
 
