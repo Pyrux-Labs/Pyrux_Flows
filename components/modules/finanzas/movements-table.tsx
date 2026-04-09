@@ -110,7 +110,7 @@ export function MovementsTable({
                       <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                     )}
                     <span className="truncate max-w-[200px]">
-                      {entry.description ?? entry.counterpart_name ?? "—"}
+                      {entry.description ?? entry.counterpart_name ?? (entry.type === "credit" ? "Transferencia recibida" : "Transferencia enviada")}
                     </span>
                   </div>
                 </TableCell>

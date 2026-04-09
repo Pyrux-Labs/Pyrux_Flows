@@ -216,9 +216,16 @@ export default async function DashboardPage() {
             <Wallet className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-foreground">Saldo Mercado Pago</span>
           </div>
-          <p className={`text-xl font-bold ${data.mpBalanceARS >= 0 ? "text-foreground" : "text-destructive"}`}>
-            {formatCurrency(data.mpBalanceARS, "ARS")}
-          </p>
+          <div className="flex items-end gap-4">
+            <p className={`text-xl font-bold ${data.mpBalanceARS >= 0 ? "text-foreground" : "text-destructive"}`}>
+              {formatCurrency(data.mpBalanceARS, "ARS")}
+            </p>
+            {data.dolarBlue && (
+              <p className="text-sm text-muted-foreground mb-0.5">
+                ≈ {formatCurrency(data.mpBalanceARS / data.dolarBlue.venta, "USD")}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -323,7 +330,7 @@ export default async function DashboardPage() {
                 >
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      {i.description ?? i.counterpart_name ?? "—"}
+                      {i.description ?? i.counterpart_name ?? "Transferencia recibida"}
                     </p>
                     <p className="text-xs text-muted-foreground">{formatDate(i.date)}</p>
                   </div>
