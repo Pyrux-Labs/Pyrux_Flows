@@ -107,7 +107,7 @@ function CategoryChart({
         />
         <Tooltip
           content={<CustomTooltip currency={currency} />}
-          cursor={{ fill: "hsl(var(--secondary))" }}
+          cursor={{ fill: "var(--secondary)" }}
         />
         <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={28}>
           {data.map((_, i) => (
