@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -14,31 +14,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SortableHead } from "@/components/shared/sortable-head";
 import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
+import { ContactsCell } from "@/components/shared/contacts-cell";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Pencil, Users, MessageSquare, Check, X, Plus } from "lucide-react";
-import { toast } from "sonner";
-import { PROSPECT_STATUS_CONFIG, CONTACT_TYPE_LABELS } from "@/lib/constants/labels";
+import { Pencil, Users, MessageSquare, Check } from "lucide-react";
+import { PROSPECT_STATUS_CONFIG } from "@/lib/constants/labels";
 import { useUpdateProspect } from "@/hooks/use-prospects";
 import { useSectors } from "@/hooks/use-sectors";
-import { useContacts, useCreateContact, useDeleteContact } from "@/hooks/use-contacts";
-import type { Prospect, ProspectStatus, Contact, ContactType } from "@/lib/types/database.types";
-
-type EditableField = "name" | "phone";
-
-interface EditingCell {
-  id: string;
-  field: EditableField;
-}
+import { useContacts } from "@/hooks/use-contacts";
+import { useInlineEdit } from "@/hooks/use-inline-edit";
+import { useTableSort } from "@/hooks/use-table-sort";
+import { compareStrings } from "@/lib/utils";
+import type { Prospect, ProspectStatus } from "@/lib/types/database.types";
 
 type SortColumn = "name" | "sector" | "status" | "contact" | "phone";
-type SortDirection = "asc" | "desc";
 
 const PROSPECT_STATUS_ORDER: Record<string, number> = {
   sin_contactar: 0,
@@ -48,101 +42,17 @@ const PROSPECT_STATUS_ORDER: Record<string, number> = {
   perdido: 4,
 };
 
-function ContactsCell({ contacts, prospectId }: { contacts: Contact[]; prospectId: string }) {
-  const [type, setType] = useState<ContactType>("email");
-  const [value, setValue] = useState("");
-  const createContact = useCreateContact();
-  const deleteContact = useDeleteContact();
-  const firstContact = contacts[0];
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!value.trim()) return;
-    await createContact.mutateAsync({ prospect_id: prospectId, type, value: value.trim() });
-    setValue("");
-  }
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-left">
-          {firstContact ? (
-            <>
-              <span className="truncate max-w-[120px]">{firstContact.value}</span>
-              {contacts.length > 1 && (
-                <span className="text-xs bg-secondary rounded px-1 shrink-0">+{contacts.length - 1}</span>
-              )}
-            </>
-          ) : (
-            <span className="text-muted-foreground/40 italic">Sin contacto</span>
-          )}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-3 space-y-2">
-        {contacts.length > 0 && (
-          <div className="space-y-1.5">
-            {contacts.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground w-16 shrink-0">{CONTACT_TYPE_LABELS[c.type]}</span>
-                <span className="flex-1 truncate">{c.value}</span>
-                <button
-                  onClick={() => deleteContact.mutate(c.id)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        {contacts.length > 0 && <div className="border-t border-border" />}
-        <form onSubmit={handleAdd} className="flex items-center gap-1.5">
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as ContactType)}
-            className="text-xs bg-background border border-input rounded px-1.5 py-1 shrink-0 outline-none"
-          >
-            {Object.entries(CONTACT_TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-          <input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Valor"
-            className="flex-1 text-xs bg-transparent border-b border-input outline-none py-1 min-w-0"
-          />
-          <Button type="submit" size="icon" variant="ghost" className="h-6 w-6 shrink-0" disabled={createContact.isPending}>
-            <Plus className="h-3 w-3" />
-          </Button>
-        </form>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 interface ProspectTableProps {
   prospects: Prospect[];
   isLoading: boolean;
   onEdit: (prospect: Prospect) => void;
 }
 
-function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
-  if (!a && !b) return 0;
-  if (!a) return 1;
-  if (!b) return -1;
-  return a.localeCompare(b, "es");
-}
-
 export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTableProps) {
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [sortColumn, setSortColumn] = useState<SortColumn>("status");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const updateProspect = useUpdateProspect();
   const { data: sectors = [] } = useSectors();
   const { data: allContacts = [] } = useContacts();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { sortColumn, sortDirection, handleSort, dir } = useTableSort<SortColumn>("status");
 
   const contactsByProspectId = useMemo(() => {
     return allContacts.reduce<Record<string, typeof allContacts>>((acc, c) => {
@@ -154,18 +64,14 @@ export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTablePro
     }, {});
   }, [allContacts]);
 
-  function handleSort(column: string) {
-    const col = column as SortColumn;
-    if (col === sortColumn) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(col);
-      setSortDirection("asc");
-    }
-  }
+  const { isActive, renderCell } = useInlineEdit<Prospect, "name" | "phone">({
+    getValue: (item, field) => item[field],
+    onCommit: (id, field, value) =>
+      updateProspect.mutateAsync({ id, payload: { [field]: value } }),
+    requiredFields: ["name"],
+  });
 
   const sorted = useMemo(() => {
-    const dir = sortDirection === "asc" ? 1 : -1;
     return [...prospects].sort((a, b) => {
       let cmp = 0;
       switch (sortColumn) {
@@ -197,72 +103,7 @@ export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTablePro
       if (cmp !== 0) return cmp * dir;
       return compareStrings(a.name, b.name);
     });
-  }, [prospects, sortColumn, sortDirection, sectors, contactsByProspectId]);
-
-  function startEdit(e: React.MouseEvent, prospect: Prospect, field: EditableField) {
-    e.stopPropagation();
-    setEditingCell({ id: prospect.id, field });
-    setEditValue(prospect[field] ?? "");
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  async function commitEdit() {
-    if (!editingCell) return;
-    const value = editValue.trim() || null;
-    if (editingCell.field === "name" && !value) {
-      setEditingCell(null);
-      return;
-    }
-    try {
-      await updateProspect.mutateAsync({
-        id: editingCell.id,
-        payload: { [editingCell.field]: value },
-      });
-    } catch {
-      toast.error("No se pudo guardar el cambio");
-    } finally {
-      setEditingCell(null);
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
-    if (e.key === "Escape") setEditingCell(null);
-  }
-
-  function isActive(prospectId: string, field: EditableField) {
-    return editingCell?.id === prospectId && editingCell?.field === field;
-  }
-
-  function renderCell(prospect: Prospect, field: EditableField, placeholder: string) {
-    const displayValue = prospect[field];
-
-    if (isActive(prospect.id, field)) {
-      return (
-        <input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={handleKeyDown}
-          onClick={(e) => e.stopPropagation()}
-          placeholder={placeholder}
-          className="w-full bg-transparent border-b border-primary outline-none text-sm py-0.5"
-        />
-      );
-    }
-
-    return (
-      <span
-        onClick={(e) => startEdit(e, prospect, field)}
-        className="cursor-text hover:text-foreground transition-colors"
-      >
-        {displayValue ?? (
-          <span className="text-muted-foreground/40 italic">{placeholder}</span>
-        )}
-      </span>
-    );
-  }
+  }, [prospects, sortColumn, dir, sectors, contactsByProspectId]);
 
   if (isLoading) {
     return (
@@ -298,108 +139,90 @@ export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTablePro
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sorted.map((prospect) => {
-            const contacts = contactsByProspectId[prospect.id] ?? [];
-            return (
-              <TableRow key={prospect.id} className="hover:bg-secondary/50">
+          {sorted.map((prospect) => (
+            <TableRow key={prospect.id} className="hover:bg-secondary/50">
 
-                {/* Nombre */}
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-1.5">
-                    {renderCell(prospect, "name", "Sin nombre")}
-                    {prospect.notes && !isActive(prospect.id, "name") && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span
-                            className="shrink-0 cursor-default"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>{prospect.notes}</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </TableCell>
+              {/* Nombre */}
+              <TableCell className="font-medium">
+                <div className="flex items-center gap-1.5">
+                  {renderCell(prospect, "name", "Sin nombre")}
+                  {prospect.notes && !isActive(prospect.id, "name") && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="shrink-0 cursor-default" onClick={(e) => e.stopPropagation()}>
+                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>{prospect.notes}</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              </TableCell>
 
-                {/* Sector */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-                        {prospect.sector
-                          ? (sectors.find((s) => s.id === prospect.sector)?.label ?? prospect.sector)
-                          : <span className="text-muted-foreground/40 italic">Sin sector</span>}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
+              {/* Sector */}
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                      {prospect.sector
+                        ? (sectors.find((s) => s.id === prospect.sector)?.label ?? prospect.sector)
+                        : <span className="text-muted-foreground/40 italic">Sin sector</span>}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem
+                      onClick={() => updateProspect.mutate({ id: prospect.id, payload: { sector: null } })}
+                      disabled={!prospect.sector}
+                      className="flex items-center gap-2"
+                    >
+                      {!prospect.sector && <Check className="h-3.5 w-3.5 shrink-0" />}
+                      <span className={!prospect.sector ? "" : "pl-5"}>Sin sector</span>
+                    </DropdownMenuItem>
+                    {sectors.map(({ id, label }) => (
                       <DropdownMenuItem
-                        onClick={() =>
-                          updateProspect.mutate({ id: prospect.id, payload: { sector: null } })
-                        }
-                        disabled={!prospect.sector}
+                        key={id}
+                        onClick={() => updateProspect.mutate({ id: prospect.id, payload: { sector: id } })}
+                        disabled={prospect.sector === id}
                         className="flex items-center gap-2"
                       >
-                        {!prospect.sector && <Check className="h-3.5 w-3.5 shrink-0" />}
-                        <span className={!prospect.sector ? "" : "pl-5"}>Sin sector</span>
+                        {prospect.sector === id && <Check className="h-3.5 w-3.5 shrink-0" />}
+                        <span className={prospect.sector === id ? "" : "pl-5"}>{label}</span>
                       </DropdownMenuItem>
-                      {sectors.map(({ id, label }) => (
-                        <DropdownMenuItem
-                          key={id}
-                          onClick={() =>
-                            updateProspect.mutate({ id: prospect.id, payload: { sector: id } })
-                          }
-                          disabled={prospect.sector === id}
-                          className="flex items-center gap-2"
-                        >
-                          {prospect.sector === id && <Check className="h-3.5 w-3.5 shrink-0" />}
-                          <span className={prospect.sector === id ? "" : "pl-5"}>{label}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
 
-                {/* Estado */}
-                <TableCell>
-                  <StatusBadgeDropdown
-                    currentStatus={prospect.status}
-                    statusConfig={PROSPECT_STATUS_CONFIG}
-                    onStatusChange={(newStatus) =>
-                      updateProspect.mutate({
-                        id: prospect.id,
-                        payload: { status: newStatus as ProspectStatus },
-                      })
-                    }
-                  />
-                </TableCell>
+              {/* Estado */}
+              <TableCell>
+                <StatusBadgeDropdown
+                  currentStatus={prospect.status}
+                  statusConfig={PROSPECT_STATUS_CONFIG}
+                  onStatusChange={(newStatus) =>
+                    updateProspect.mutate({ id: prospect.id, payload: { status: newStatus as ProspectStatus } })
+                  }
+                />
+              </TableCell>
 
-                {/* Contacto */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <ContactsCell contacts={contacts} prospectId={prospect.id} />
-                </TableCell>
+              {/* Contacto */}
+              <TableCell onClick={(e) => e.stopPropagation()}>
+                <ContactsCell entityId={prospect.id} entityType="prospect" />
+              </TableCell>
 
-                {/* Teléfono */}
-                <TableCell className="text-sm text-muted-foreground">
-                  {renderCell(prospect, "phone", "Sin teléfono")}
-                </TableCell>
+              {/* Teléfono */}
+              <TableCell className="text-sm text-muted-foreground">
+                {renderCell(prospect, "phone", "Sin teléfono")}
+              </TableCell>
 
-                {/* Editar */}
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onEdit(prospect)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </TableCell>
+              {/* Editar */}
+              <TableCell>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(prospect)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </TableCell>
 
-              </TableRow>
-            );
-          })}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

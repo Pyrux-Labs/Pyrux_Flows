@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useMemo } from "react";
+import { useTableSort } from "@/hooks/use-table-sort";
 import {
   Table,
   TableBody,
@@ -16,13 +17,12 @@ import { SortableHead } from "@/components/shared/sortable-head";
 import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
 import { Pencil, FolderKanban } from "lucide-react";
 import { toast } from "sonner";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, compareStrings } from "@/lib/utils";
 import { PROJECT_STATUS_CONFIG } from "@/lib/constants/labels";
 import { useUpdateProject } from "@/hooks/use-projects";
 import type { ProjectWithClient, ProjectStatus } from "@/lib/types/database.types";
 
 type SortColumn = "name" | "client" | "status" | "start_date" | "end_date" | "price";
-type SortDirection = "asc" | "desc";
 
 const PROJECT_STATUS_ORDER: Record<string, number> = {
   desarrollo: 0,
@@ -38,13 +38,6 @@ interface ProjectTableProps {
   onEdit: (project: ProjectWithClient) => void;
 }
 
-function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
-  if (!a && !b) return 0;
-  if (!a) return 1;
-  if (!b) return -1;
-  return a.localeCompare(b, "es");
-}
-
 function compareDates(a: string | null | undefined, b: string | null | undefined): number {
   if (!a && !b) return 0;
   if (!a) return 1;
@@ -55,23 +48,11 @@ function compareDates(a: string | null | undefined, b: string | null | undefined
 export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [sortColumn, setSortColumn] = useState<SortColumn>("status");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const updateProject = useUpdateProject();
   const inputRef = useRef<HTMLInputElement>(null);
-
-  function handleSort(column: string) {
-    const col = column as SortColumn;
-    if (col === sortColumn) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(col);
-      setSortDirection("asc");
-    }
-  }
+  const { sortColumn, sortDirection, handleSort, dir } = useTableSort<SortColumn>("status");
 
   const sorted = useMemo(() => {
-    const dir = sortDirection === "asc" ? 1 : -1;
     return [...projects].sort((a, b) => {
       let cmp = 0;
       switch (sortColumn) {
@@ -100,7 +81,7 @@ export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps)
       if (cmp !== 0) return cmp * dir;
       return compareStrings(a.name, b.name);
     });
-  }, [projects, sortColumn, sortDirection]);
+  }, [projects, sortColumn, dir]);
 
   function startEdit(e: React.MouseEvent, project: ProjectWithClient) {
     e.stopPropagation();

@@ -1,25 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import { ClientTable } from "./client-table";
 import { ClientSheet } from "./client-sheet";
 import { useClients } from "@/hooks/use-clients";
 import { useProjects } from "@/hooks/use-projects";
 import { usePagination } from "@/hooks/use-pagination";
+import { useSheetWithUrl } from "@/hooks/use-sheet-with-url";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import type { Client } from "@/lib/types/database.types";
 
 export function ClientesShell() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const editId = searchParams.get("edit");
-  const openedEditRef = useRef<string | null>(null);
-
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
-
   const { data: clients = [], isLoading: loadingClients } = useClients();
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
 
@@ -33,32 +25,8 @@ export function ClientesShell() {
   }, [projects]);
 
   const { visibleItems, hasMore, remaining, loadMore } = usePagination(clients);
-
-  useEffect(() => {
-    if (!editId || loadingClients || openedEditRef.current === editId) return;
-    const client = clients.find((c) => c.id === editId);
-    if (client) {
-      openedEditRef.current = editId;
-      setEditingClient(client);
-      setSheetOpen(true);
-      router.replace("/clientes");
-    }
-  }, [editId, loadingClients, clients, router]);
-
-  function handleEdit(client: Client) {
-    setEditingClient(client);
-    setSheetOpen(true);
-  }
-
-  function handleNew() {
-    setEditingClient(null);
-    setSheetOpen(true);
-  }
-
-  function handleSheetChange(open: boolean) {
-    setSheetOpen(open);
-    if (!open) setEditingClient(null);
-  }
+  const { sheetOpen, editingItem, handleEdit, handleNew, handleSheetChange } =
+    useSheetWithUrl<Client>(clients, loadingClients, "/clientes");
 
   return (
     <div className="space-y-4">
@@ -93,7 +61,7 @@ export function ClientesShell() {
       <ClientSheet
         open={sheetOpen}
         onOpenChange={handleSheetChange}
-        client={editingClient}
+        client={editingItem}
       />
     </div>
   );

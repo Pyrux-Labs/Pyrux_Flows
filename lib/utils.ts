@@ -34,3 +34,14 @@ export function formatDate(dateStr: string): string {
 export function todayISO(): string {
   return format(new Date(), "yyyy-MM-dd");
 }
+
+/** Spanish-locale string comparison with null-last ordering */
+export function compareStrings(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b, "es");
+}

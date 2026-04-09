@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SortableHead } from "@/components/shared/sortable-head";
 import { Pencil, TrendingUp, RefreshCw, AlertCircle } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, compareStrings } from "@/lib/utils";
 import {
   MOVEMENT_CREDIT_CATEGORY_LABELS,
   MOVEMENT_DEBIT_CATEGORY_LABELS,
@@ -37,13 +37,6 @@ const CATEGORY_LABELS: Record<MovementType, Record<string, string>> = {
   credit: MOVEMENT_CREDIT_CATEGORY_LABELS,
   debit: MOVEMENT_DEBIT_CATEGORY_LABELS,
 };
-
-function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
-  if (!a && !b) return 0;
-  if (!a) return 1;
-  if (!b) return -1;
-  return a.localeCompare(b, "es");
-}
 
 export function MovementsTable({
   movements,

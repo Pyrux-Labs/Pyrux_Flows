@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -11,49 +10,18 @@ import { ProspectPipeline } from "./prospect-pipeline";
 import { ProspectSheet } from "./prospect-sheet";
 import { useProspects } from "@/hooks/use-prospects";
 import { usePagination } from "@/hooks/use-pagination";
+import { useSheetWithUrl } from "@/hooks/use-sheet-with-url";
 import type { Prospect } from "@/lib/types/database.types";
 
 export function ProspectosShell() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const editId = searchParams.get("edit");
-  const openedEditRef = useRef<string | null>(null);
-
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
-
   const { data: allProspects = [], isLoading } = useProspects();
   const prospects = useMemo(
     () => allProspects.filter((p) => p.status !== "cerrado"),
     [allProspects],
   );
   const { visibleItems: visibleProspects, hasMore, remaining, loadMore } = usePagination(prospects);
-
-  useEffect(() => {
-    if (!editId || isLoading || openedEditRef.current === editId) return;
-    const prospect = allProspects.find((p) => p.id === editId);
-    if (prospect) {
-      openedEditRef.current = editId;
-      setEditingProspect(prospect);
-      setSheetOpen(true);
-      router.replace("/prospectos");
-    }
-  }, [editId, isLoading, allProspects, router]);
-
-  function handleEdit(prospect: Prospect) {
-    setEditingProspect(prospect);
-    setSheetOpen(true);
-  }
-
-  function handleAdd() {
-    setEditingProspect(null);
-    setSheetOpen(true);
-  }
-
-  function handleSheetOpenChange(open: boolean) {
-    setSheetOpen(open);
-    if (!open) setEditingProspect(null);
-  }
+  const { sheetOpen, editingItem, handleEdit, handleNew, handleSheetChange } =
+    useSheetWithUrl<Prospect>(allProspects, isLoading, "/prospectos");
 
   return (
     <div className="space-y-4">
@@ -64,7 +32,7 @@ export function ProspectosShell() {
             CRM — seguimiento de clientes potenciales
           </p>
         </div>
-        <Button onClick={handleAdd} size="sm">
+        <Button onClick={handleNew} size="sm">
           <Plus className="h-4 w-4 mr-1.5" />
           Nuevo prospecto
         </Button>
@@ -93,26 +61,18 @@ export function ProspectosShell() {
         </TabsContent>
 
         <TabsContent value="kanban">
-          <ProspectKanban
-            prospects={prospects}
-            isLoading={isLoading}
-            onEdit={handleEdit}
-          />
+          <ProspectKanban prospects={prospects} isLoading={isLoading} onEdit={handleEdit} />
         </TabsContent>
 
         <TabsContent value="pipeline">
-          <ProspectPipeline
-            prospects={prospects}
-            isLoading={isLoading}
-            onEdit={handleEdit}
-          />
+          <ProspectPipeline prospects={prospects} isLoading={isLoading} onEdit={handleEdit} />
         </TabsContent>
       </Tabs>
 
       <ProspectSheet
         open={sheetOpen}
-        onOpenChange={handleSheetOpenChange}
-        prospect={editingProspect}
+        onOpenChange={handleSheetChange}
+        prospect={editingItem}
       />
     </div>
   );

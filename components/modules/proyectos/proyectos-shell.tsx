@@ -1,7 +1,5 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -10,45 +8,14 @@ import { ProjectKanban } from "./project-kanban";
 import { ProjectSheet } from "./project-sheet";
 import { useProjects } from "@/hooks/use-projects";
 import { usePagination } from "@/hooks/use-pagination";
+import { useSheetWithUrl } from "@/hooks/use-sheet-with-url";
 import type { ProjectWithClient } from "@/lib/types/database.types";
 
 export function ProyectosShell() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const editId = searchParams.get("edit");
-  const openedEditRef = useRef<string | null>(null);
-
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<ProjectWithClient | null>(null);
-
   const { data: projects = [], isLoading } = useProjects();
   const { visibleItems: visibleProjects, hasMore, remaining, loadMore } = usePagination(projects);
-
-  useEffect(() => {
-    if (!editId || isLoading || openedEditRef.current === editId) return;
-    const project = projects.find((p) => p.id === editId);
-    if (project) {
-      openedEditRef.current = editId;
-      setEditingProject(project);
-      setSheetOpen(true);
-      router.replace("/proyectos");
-    }
-  }, [editId, isLoading, projects, router]);
-
-  function handleEdit(project: ProjectWithClient) {
-    setEditingProject(project);
-    setSheetOpen(true);
-  }
-
-  function handleAdd() {
-    setEditingProject(null);
-    setSheetOpen(true);
-  }
-
-  function handleSheetOpenChange(open: boolean) {
-    setSheetOpen(open);
-    if (!open) setEditingProject(null);
-  }
+  const { sheetOpen, editingItem, handleEdit, handleNew, handleSheetChange } =
+    useSheetWithUrl<ProjectWithClient>(projects, isLoading, "/proyectos");
 
   return (
     <div className="space-y-4">
@@ -59,7 +26,7 @@ export function ProyectosShell() {
             Clientes activos y proyectos en curso
           </p>
         </div>
-        <Button onClick={handleAdd} size="sm">
+        <Button onClick={handleNew} size="sm">
           <Plus className="h-4 w-4 mr-1.5" />
           Nuevo proyecto
         </Button>
@@ -87,18 +54,14 @@ export function ProyectosShell() {
         </TabsContent>
 
         <TabsContent value="kanban">
-          <ProjectKanban
-            projects={projects}
-            isLoading={isLoading}
-            onEdit={handleEdit}
-          />
+          <ProjectKanban projects={projects} isLoading={isLoading} onEdit={handleEdit} />
         </TabsContent>
       </Tabs>
 
       <ProjectSheet
         open={sheetOpen}
-        onOpenChange={handleSheetOpenChange}
-        project={editingProject}
+        onOpenChange={handleSheetChange}
+        project={editingItem}
       />
     </div>
   );

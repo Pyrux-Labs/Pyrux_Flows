@@ -11,16 +11,7 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { UnsavedChangesDialog } from "@/components/shared/unsaved-changes-dialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import {
   Select,
@@ -314,20 +305,11 @@ export function ServiceSheet({ open, onOpenChange, service }: ServiceSheetProps)
       </SheetContent>
     </Sheet>
 
-    <AlertDialog open={warningOpen} onOpenChange={cancelDiscard}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Tenés cambios sin guardar. Si cerrás ahora se perderán.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={cancelDiscard}>Seguir editando</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDiscard}>Descartar</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <UnsavedChangesDialog
+      open={warningOpen}
+      onConfirm={confirmDiscard}
+      onCancel={cancelDiscard}
+    />
     </>
   );
 }
