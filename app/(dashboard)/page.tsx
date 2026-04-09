@@ -103,16 +103,14 @@ async function getDashboardData() {
       .lte("date", trendTo),
   ]);
 
-  // Balance: sum of all synced ARS movements (credits − debits)
-  const { data: allMovements } = await supabase
-    .from("movements")
-    .select("type, amount, currency")
-    .eq("currency", "ARS");
+  // Balance: read from settings (saved during sync from bank_report closing balance)
+  const { data: balanceSetting } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "mp_balance_ars")
+    .single();
 
-  const mpBalanceARS = (allMovements ?? []).reduce(
-    (sum, m) => sum + (m.type === "credit" ? m.amount : -m.amount),
-    0,
-  );
+  const mpBalanceARS = balanceSetting?.value ? parseFloat(balanceSetting.value) : null;
 
   const credits = creditsRes.data ?? [];
   const debits = debitsRes.data ?? [];
@@ -212,18 +210,17 @@ export default async function DashboardPage() {
       </div>
 
       {/* MP Balance */}
-      <div className="bg-card border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Wallet className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Saldo Mercado Pago</span>
-          <span className="text-xs text-muted-foreground ml-auto">estimado desde movimientos</span>
-        </div>
-        <div>
+      {data.mpBalanceARS !== null && (
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Wallet className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Saldo Mercado Pago</span>
+          </div>
           <p className={`text-xl font-bold ${data.mpBalanceARS >= 0 ? "text-foreground" : "text-destructive"}`}>
-            {formatCurrency(Math.abs(data.mpBalanceARS), "ARS")}
+            {formatCurrency(data.mpBalanceARS, "ARS")}
           </p>
         </div>
-      </div>
+      )}
 
       {/* Dólar blue */}
       <div className="bg-card border border-border rounded-lg p-4">

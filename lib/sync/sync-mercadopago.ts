@@ -32,9 +32,9 @@ interface MpSearchResponse {
 
 interface ReportListItem {
   id: number;
-  status: "processed" | "pending" | string;
+  status: "processed" | "enabled" | string;
   file_name: string;
-  last_modified: string;
+  date_created: string;
 }
 
 interface MpRule {
@@ -65,10 +65,10 @@ function buildRuleMap(rules: MpRule[]): Map<string, MpRule> {
   return map;
 }
 
-// ── Settlement report helpers ─────────────────────────────────────────────────
+// ── Settlement report (todas las transacciones) ───────────────────────────────
 
-/** Fire-and-forget: triggers a new report generation for the next sync cycle */
-function triggerReportGeneration(begin: Date, end: Date, token: string): void {
+/** Fire-and-forget: triggers a new settlement report for the next sync cycle */
+function triggerSettlementReport(begin: Date, end: Date, token: string): void {
   fetch(`${MP_API}/v1/account/settlement_report`, {
     method: "POST",
     headers: {
@@ -80,30 +80,28 @@ function triggerReportGeneration(begin: Date, end: Date, token: string): void {
       end_date: end.toISOString(),
     }),
     cache: "no-store",
-  }).catch(() => {
-    // Non-critical: next sync will try again
-  });
+  }).catch(() => {});
 }
 
-/** Returns the most recently modified processed report file name, or null */
-async function getLatestProcessedReport(token: string): Promise<string | null> {
+/** Returns the most recently created processed settlement report file name, or null */
+async function getLatestSettlementReport(token: string): Promise<string | null> {
   try {
     const list = await apiFetch<ReportListItem[]>("/v1/account/settlement_report/list", token);
     const processed = list
       .filter((r) => r.status === "processed" && r.file_name)
-      .sort((a, b) => new Date(b.last_modified).getTime() - new Date(a.last_modified).getTime());
+      .sort((a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime());
     return processed[0]?.file_name ?? null;
   } catch {
     return null;
   }
 }
 
-async function downloadReportCsv(fileName: string, token: string): Promise<string> {
+async function downloadSettlementCsv(fileName: string, token: string): Promise<string> {
   const res = await fetch(`${MP_API}/v1/account/settlement_report/${fileName}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
-  if (!res.ok) throw new Error(`CSV download failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Settlement CSV download failed: ${res.status}`);
   return res.text();
 }
 
@@ -115,32 +113,50 @@ interface CsvMovement {
   date: string;
 }
 
+/**
+ * Parses the settlement report CSV (todas las transacciones).
+ * Format: SOURCE_ID;PAYMENT_METHOD_TYPE;TRANSACTION_TYPE;TRANSACTION_AMOUNT;TRANSACTION_DATE;...
+ *
+ * Filter rules:
+ * - Keep PAYOUTS (P2P transfers) regardless of PAYMENT_METHOD_TYPE
+ * - Keep SETTLEMENT rows that have a PAYMENT_METHOD_TYPE (real payments)
+ * - Skip SETTLEMENT rows with empty PAYMENT_METHOD_TYPE (rendimientos/interest)
+ */
 function parseSettlementCsv(csv: string): CsvMovement[] {
   const lines = csv.replace(/\r/g, "").trim().split("\n");
   if (lines.length < 2) return [];
 
   const headers = lines[0].split(";").map((h) => h.trim());
-  const iAmount = headers.indexOf("TRANSACTION_AMOUNT");
-  const iDate = headers.indexOf("TRANSACTION_DATE");
   const iSource = headers.indexOf("SOURCE_ID");
   const iPaymentMethod = headers.indexOf("PAYMENT_METHOD_TYPE");
+  const iTransactionType = headers.indexOf("TRANSACTION_TYPE");
+  const iAmount = headers.indexOf("TRANSACTION_AMOUNT");
+  const iDate = headers.indexOf("TRANSACTION_DATE");
 
-  if (iAmount === -1 || iDate === -1 || iSource === -1) return [];
+  if (iSource === -1 || iAmount === -1 || iDate === -1) return [];
 
   const movements: CsvMovement[] = [];
 
   for (const line of lines.slice(1)) {
     if (!line.trim()) continue;
     const cols = line.split(";");
-    const rawAmount = parseFloat(cols[iAmount] ?? "0");
+
     const sourceId = (cols[iSource] ?? "").trim();
     const dateStr = (cols[iDate] ?? "").trim();
+    const rawAmount = parseFloat(cols[iAmount] ?? "0");
     const paymentMethod = iPaymentMethod !== -1 ? (cols[iPaymentMethod] ?? "").trim() : "";
-
-    // Skip interest/rendimiento rows (no payment method = daily balance interest)
-    if (!paymentMethod) continue;
+    const transactionType = iTransactionType !== -1 ? (cols[iTransactionType] ?? "").trim() : "";
 
     if (!sourceId || !dateStr || rawAmount === 0) continue;
+
+    const isSettlement = transactionType === "SETTLEMENT";
+    const isPayout = transactionType === "PAYOUTS";
+
+    // Skip interest/rendimiento: SETTLEMENT rows with no payment method
+    if (isSettlement && !paymentMethod) continue;
+
+    // Keep PAYOUTS (P2P transfers) and SETTLEMENT with a payment method
+    if (!isSettlement && !isPayout) continue;
 
     movements.push({
       mp_id: sourceId,
@@ -152,6 +168,76 @@ function parseSettlementCsv(csv: string): CsvMovement[] {
   }
 
   return movements;
+}
+
+// ── Bank report (liquidaciones — for balance) ─────────────────────────────────
+
+/** Fire-and-forget: triggers a new bank report for the next sync cycle */
+function triggerBankReport(begin: Date, end: Date, token: string): void {
+  fetch(`${MP_API}/v1/account/bank_report`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      begin_date: begin.toISOString(),
+      end_date: end.toISOString(),
+    }),
+    cache: "no-store",
+  }).catch(() => {});
+}
+
+/** Returns the most recently created bank report file name, or null */
+async function getLatestBankReport(token: string): Promise<string | null> {
+  try {
+    const list = await apiFetch<ReportListItem[]>("/v1/account/bank_report/list", token);
+    const available = list
+      .filter((r) => r.file_name)
+      .sort((a, b) => new Date(b.date_created).getTime() - new Date(a.date_created).getTime());
+    return available[0]?.file_name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function downloadBankCsv(fileName: string, token: string): Promise<string> {
+  const res = await fetch(`${MP_API}/v1/account/bank_report/${fileName}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Bank CSV download failed: ${res.status}`);
+  return res.text();
+}
+
+/**
+ * Parses the bank report CSV (liquidaciones) and returns the closing balance.
+ * Format: DATE;SOURCE_ID;DESCRIPTION;NET_CREDIT_AMOUNT;...;BALANCE_AMOUNT;...
+ * The last row with a non-empty DATE holds the most recent BALANCE_AMOUNT.
+ */
+function parseBankReportBalance(csv: string): number | null {
+  const lines = csv.replace(/\r/g, "").trim().split("\n");
+  if (lines.length < 2) return null;
+
+  const headers = lines[0].split(";").map((h) => h.trim());
+  const iDate = headers.indexOf("DATE");
+  const iBalance = headers.indexOf("BALANCE_AMOUNT");
+
+  if (iDate === -1 || iBalance === -1) return null;
+
+  let lastBalance: number | null = null;
+
+  for (const line of lines.slice(1)) {
+    if (!line.trim()) continue;
+    const cols = line.split(";");
+    const dateStr = (cols[iDate] ?? "").trim();
+    const balanceStr = (cols[iBalance] ?? "").trim();
+    if (!dateStr || !balanceStr) continue;
+    const balance = parseFloat(balanceStr);
+    if (!isNaN(balance)) lastBalance = balance;
+  }
+
+  return lastBalance;
 }
 
 // ── Main sync ─────────────────────────────────────────────────────────────────
@@ -186,8 +272,8 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
     `&end_date=${endDate.toISOString()}` +
     `&limit=300`;
 
-  // 3. In parallel: fetch payments (fast, with descriptions) + get latest report
-  const [inbound, outbound, reportFileName] = await Promise.all([
+  // 3. In parallel: payments/search + latest settlement report + latest bank report
+  const [inbound, outbound, settlementFileName, bankFileName] = await Promise.all([
     apiFetch<MpSearchResponse>(
       `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
       token,
@@ -196,14 +282,15 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
       `/v1/payments/search?payer.id=${myUserId}&sort=date_created&criteria=desc${dateParams}`,
       token,
     ),
-    getLatestProcessedReport(token),
+    getLatestSettlementReport(token),
+    getLatestBankReport(token),
   ]);
 
   // 4. Load mp_rules
   const { data: rules } = await supabase.from("mp_rules").select("*");
   const ruleMap = buildRuleMap((rules ?? []) as MpRule[]);
 
-  // 5. Build movements from payments/search (with descriptions)
+  // 5. Build movements from payments/search (with descriptions — take priority)
   const creditMovements = inbound.results
     .filter(
       (p) =>
@@ -251,7 +338,7 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
       };
     });
 
-  // 6. Upsert payments/search movements first (have descriptions — take priority)
+  // 6. Upsert payments/search movements first
   const paymentsMovements = [...creditMovements, ...purchaseMovements];
   if (paymentsMovements.length > 0) {
     const { error } = await supabase
@@ -260,10 +347,10 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
     if (error) throw error;
   }
 
-  // 7. Process latest settlement report (adds money_transfers + interest not in payments/search)
+  // 7. Process settlement report (adds PAYOUTS not captured by payments/search)
   let settlementCount = 0;
-  if (reportFileName) {
-    const csv = await downloadReportCsv(reportFileName, token);
+  if (settlementFileName) {
+    const csv = await downloadSettlementCsv(settlementFileName, token);
     const csvMovements = parseSettlementCsv(csv);
 
     const knownMpIds = new Set(paymentsMovements.map((m) => m.mp_id));
@@ -292,10 +379,23 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
     }
   }
 
-  // 8. Trigger new report generation for next sync (fire and forget)
-  triggerReportGeneration(beginDate, endDate, token);
+  // 8. Get closing balance from bank report and save to settings
+  if (bankFileName) {
+    const bankCsv = await downloadBankCsv(bankFileName, token);
+    const balance = parseBankReportBalance(bankCsv);
+    if (balance !== null) {
+      await supabase.from("settings").upsert(
+        { key: "mp_balance_ars", value: String(balance), updated_at: new Date().toISOString() },
+        { onConflict: "key" },
+      );
+    }
+  }
 
-  // 9. Save sync timestamp
+  // 9. Trigger new reports for next sync (fire and forget)
+  triggerSettlementReport(beginDate, endDate, token);
+  triggerBankReport(beginDate, endDate, token);
+
+  // 10. Save sync timestamp
   await supabase.from("settings").upsert(
     { key: "last_sync_at", value: endDate.toISOString(), updated_at: new Date().toISOString() },
     { onConflict: "key" },
