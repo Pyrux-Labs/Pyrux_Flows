@@ -156,26 +156,23 @@ async function getDashboardData() {
     return { month: label.charAt(0).toUpperCase() + label.slice(1), ingresos, gastos };
   });
 
-  // Maintenance control
+  // Maintenance control — everything normalized to USD via dólar blue
   const maintenanceProjects = maintenanceProjectsRes.data ?? [];
   const maintenanceReceived = maintenanceReceivedRes.data ?? [];
+  const blueRate = dolarBlue?.venta ?? null;
 
-  const maintenanceExpected = {
-    ARS: maintenanceProjects
-      .filter((p) => p.maintenance_currency === "ARS")
-      .reduce((s, p) => s + (p.maintenance_amount ?? 0), 0),
-    USD: maintenanceProjects
-      .filter((p) => p.maintenance_currency === "USD")
-      .reduce((s, p) => s + (p.maintenance_amount ?? 0), 0),
-  };
-  const maintenanceActual = {
-    ARS: maintenanceReceived
-      .filter((m) => m.currency === "ARS")
-      .reduce((s, m) => s + m.amount, 0),
-    USD: maintenanceReceived
-      .filter((m) => m.currency === "USD")
-      .reduce((s, m) => s + m.amount, 0),
-  };
+  const maintenanceExpectedUSD = maintenanceProjects.reduce((s, p) => {
+    const amount = p.maintenance_amount ?? 0;
+    if (p.maintenance_currency === "USD") return s + amount;
+    if (blueRate) return s + amount / blueRate;
+    return s;
+  }, 0);
+
+  const maintenanceActualUSD = maintenanceReceived.reduce((s, m) => {
+    if (m.currency === "USD") return s + m.amount;
+    if (blueRate) return s + m.amount / blueRate;
+    return s;
+  }, 0);
 
   return {
     dolarBlue,
@@ -188,8 +185,8 @@ async function getDashboardData() {
     activeProjects: activeProjectsRes.count ?? 0,
     recentProspects: recentProspectsRes.data ?? [],
     recentIncome: recentCreditsRes.data ?? [],
-    maintenanceExpected,
-    maintenanceActual,
+    maintenanceExpectedUSD,
+    maintenanceActualUSD,
   };
 }
 
@@ -307,41 +304,43 @@ export default async function DashboardPage() {
       </div>
 
       {/* Maintenance control */}
-      {(data.maintenanceExpected.ARS > 0 || data.maintenanceExpected.USD > 0) && (
+      {data.maintenanceExpectedUSD > 0 && (
         <div className="bg-card border border-border rounded-lg p-4 space-y-3">
           <div className="flex items-center gap-2">
             <CalendarCheck className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-foreground">Control de mantenimientos</span>
             <span className="text-xs text-muted-foreground ml-auto">este mes</span>
           </div>
-          <div className="space-y-2">
-            {(["ARS", "USD"] as const).map((currency) => {
-              const expected = data.maintenanceExpected[currency];
-              const actual = data.maintenanceActual[currency];
-              if (expected === 0) return null;
-              const diff = actual - expected;
-              const complete = diff >= 0;
-              return (
-                <div key={currency} className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-muted-foreground w-10">{currency}</span>
-                  <div className="flex-1 flex items-center gap-2">
-                    <span className="text-foreground font-mono">
-                      {formatCurrency(actual, currency)}
-                    </span>
-                    <span className="text-muted-foreground">/</span>
-                    <span className="text-muted-foreground font-mono">
-                      {formatCurrency(expected, currency)}
-                    </span>
-                  </div>
-                  <span className={`text-xs font-medium ${complete ? "text-green-400" : "text-yellow-400"}`}>
-                    {complete
-                      ? "completo"
-                      : `falta ${formatCurrency(Math.abs(diff), currency)}`}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Recibido</p>
+              <p className="text-xl font-bold text-foreground">
+                {formatCurrency(data.maintenanceActualUSD, "USD")}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground mb-0.5">Esperado</p>
+              <p className="text-xl font-bold text-muted-foreground">
+                {formatCurrency(data.maintenanceExpectedUSD, "USD")}
+              </p>
+            </div>
           </div>
+          {(() => {
+            const diff = data.maintenanceActualUSD - data.maintenanceExpectedUSD;
+            const complete = diff >= 0;
+            return (
+              <p className={`text-xs font-medium ${complete ? "text-green-400" : "text-yellow-400"}`}>
+                {complete
+                  ? "✓ Todo cobrado este mes"
+                  : `Falta cobrar ≈ ${formatCurrency(Math.abs(diff), "USD")}`}
+              </p>
+            );
+          })()}
+          {data.dolarBlue && (
+            <p className="text-xs text-muted-foreground">
+              Conversión a tipo blue venta (${formatCurrency(data.dolarBlue.venta, "ARS")})
+            </p>
+          )}
         </div>
       )}
 
