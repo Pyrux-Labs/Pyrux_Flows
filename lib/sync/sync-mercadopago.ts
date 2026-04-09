@@ -210,34 +210,79 @@ async function downloadBankCsv(fileName: string, token: string): Promise<string>
   return res.text();
 }
 
+interface BankReportResult {
+  movements: CsvMovement[];
+  closingBalance: number | null;
+}
+
 /**
- * Parses the bank report CSV (liquidaciones) and returns the closing balance.
- * Format: DATE;SOURCE_ID;DESCRIPTION;NET_CREDIT_AMOUNT;...;BALANCE_AMOUNT;...
- * The last row with a non-empty DATE holds the most recent BALANCE_AMOUNT.
+ * Parses the bank report CSV (liquidaciones).
+ * Format: DATE;SOURCE_ID;DESCRIPTION;NET_CREDIT_AMOUNT;NET_DEBIT_AMOUNT;...;BALANCE_AMOUNT;...
+ *
+ * Captures:
+ * - payout rows → debit movements (P2P outgoing transfers)
+ * - payment rows → credit movements (may overlap with payments/search, deduped later)
+ * - Closing balance from last BALANCE_AMOUNT
+ *
+ * Skips: asset_management (interest), reserve_for_payout (temporary, cancel each other)
  */
-function parseBankReportBalance(csv: string): number | null {
+function parseBankReport(csv: string): BankReportResult {
   const lines = csv.replace(/\r/g, "").trim().split("\n");
-  if (lines.length < 2) return null;
+  if (lines.length < 2) return { movements: [], closingBalance: null };
 
   const headers = lines[0].split(";").map((h) => h.trim());
   const iDate = headers.indexOf("DATE");
+  const iSource = headers.indexOf("SOURCE_ID");
+  const iDesc = headers.indexOf("DESCRIPTION");
+  const iCredit = headers.indexOf("NET_CREDIT_AMOUNT");
+  const iDebit = headers.indexOf("NET_DEBIT_AMOUNT");
   const iBalance = headers.indexOf("BALANCE_AMOUNT");
 
-  if (iDate === -1 || iBalance === -1) return null;
+  if (iDate === -1 || iSource === -1 || iCredit === -1 || iDebit === -1) {
+    return { movements: [], closingBalance: null };
+  }
 
-  let lastBalance: number | null = null;
+  const movements: CsvMovement[] = [];
+  let closingBalance: number | null = null;
 
   for (const line of lines.slice(1)) {
     if (!line.trim()) continue;
     const cols = line.split(";");
     const dateStr = (cols[iDate] ?? "").trim();
-    const balanceStr = (cols[iBalance] ?? "").trim();
-    if (!dateStr || !balanceStr) continue;
-    const balance = parseFloat(balanceStr);
-    if (!isNaN(balance)) lastBalance = balance;
+    const sourceId = (cols[iSource] ?? "").trim();
+    const desc = iDesc !== -1 ? (cols[iDesc] ?? "").trim() : "";
+    const credit = parseFloat(cols[iCredit] ?? "0");
+    const debit = parseFloat(cols[iDebit] ?? "0");
+    const balanceStr = iBalance !== -1 ? (cols[iBalance] ?? "").trim() : "";
+
+    // Track running balance (last valid non-zero value is the closing balance)
+    if (balanceStr) {
+      const b = parseFloat(balanceStr);
+      if (!isNaN(b) && b !== 0) closingBalance = b;
+    }
+
+    // Skip rows without source or date (opening/closing summary rows)
+    if (!sourceId || !dateStr) continue;
+
+    // Skip interest and temporary reserve rows
+    if (desc === "asset_management" || desc === "reserve_for_payout") continue;
+
+    // Only capture payout (P2P out) and payment (incoming) rows
+    if (desc !== "payout" && desc !== "payment") continue;
+
+    const netAmount = credit - debit;
+    if (netAmount === 0) continue;
+
+    movements.push({
+      mp_id: sourceId,
+      type: netAmount > 0 ? "credit" : "debit",
+      amount: Math.abs(netAmount),
+      currency: "ARS",
+      date: toArgentinaDate(dateStr),
+    });
   }
 
-  return lastBalance;
+  return { movements, closingBalance };
 }
 
 // ── Main sync ─────────────────────────────────────────────────────────────────
@@ -262,7 +307,7 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
 
   const beginDate = lastSyncSetting?.value
     ? new Date(lastSyncSetting.value)
-    : new Date(Date.now() - 60 * 24 * 60 * 60 * 1000); // 60 days on first sync
+    : new Date("2026-03-01T00:00:00.000-03:00"); // start of March on first sync
 
   const endDate = new Date();
 
@@ -379,13 +424,37 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
     }
   }
 
-  // 8. Get closing balance from bank report and save to settings
+  // 8. Process bank report: extract payout movements + closing balance
   if (bankFileName) {
     const bankCsv = await downloadBankCsv(bankFileName, token);
-    const balance = parseBankReportBalance(bankCsv);
-    if (balance !== null) {
+    const { movements: bankMovements, closingBalance } = parseBankReport(bankCsv);
+
+    // Add payout/payment rows — ignoreDuplicates handles overlap with payments/search
+    const bankOnlyMovements = bankMovements
+      .map((m) => ({
+        mp_id: m.mp_id,
+        type: m.type,
+        amount: m.amount,
+        currency: m.currency,
+        description: null,
+        date: m.date,
+        counterpart_id: null,
+        counterpart_name: null,
+        project_id: null,
+        category: null,
+        is_recurring: false,
+      }));
+
+    if (bankOnlyMovements.length > 0) {
+      const { error } = await supabase
+        .from("movements")
+        .upsert(bankOnlyMovements, { onConflict: "mp_id", ignoreDuplicates: true });
+      if (error) throw error;
+    }
+
+    if (closingBalance !== null) {
       await supabase.from("settings").upsert(
-        { key: "mp_balance_ars", value: String(balance), updated_at: new Date().toISOString() },
+        { key: "mp_balance_ars", value: String(closingBalance), updated_at: new Date().toISOString() },
         { onConflict: "key" },
       );
     }
