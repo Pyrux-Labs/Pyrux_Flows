@@ -14,6 +14,5 @@ export function useSectors() {
       if (error) throw error;
       return data as Sector[];
     },
-    staleTime: Infinity,
   });
 }
