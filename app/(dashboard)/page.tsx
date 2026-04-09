@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth, endOfMonth, startOfWeek, subMonths, format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { TrendingUp, Receipt, Users, FolderKanban, DollarSign } from "lucide-react";
+import { TrendingUp, Receipt, Users, FolderKanban, DollarSign, Wallet } from "lucide-react";
 import Link from "next/link";
 import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import { TrendsChart } from "@/components/modules/dashboard/trends-chart";
+import { getMpAccessToken } from "@/lib/mp/token";
 
 interface DolarBlue {
   compra: number;
@@ -12,11 +13,32 @@ interface DolarBlue {
   fechaActualizacion: string;
 }
 
+interface MpBalance {
+  available_balance: number;
+  unavailable_balance: number;
+  total_amount: number;
+  currency_id: string;
+}
+
 async function getDolarBlue(): Promise<DolarBlue | null> {
   try {
     const res = await fetch("https://dolarapi.com/v1/dolares/blue", {
       next: { revalidate: 86400 },
     });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function getMpBalance(userId: number): Promise<MpBalance | null> {
+  try {
+    const token = await getMpAccessToken();
+    const res = await fetch(
+      `https://api.mercadopago.com/users/${userId}/mercadopago_account/balance`,
+      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+    );
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -43,8 +65,12 @@ async function getDashboardData() {
   const trendFrom = trendMonths[0].from;
   const trendTo = trendMonths[5].to;
 
+  // Resolve MP user ID from stored token (needed for balance endpoint)
+  const mpUserId = 177375687; // extracted from APP_USR token; stable unless token is revoked
+
   const [
     dolarBlue,
+    mpBalance,
     creditsRes,
     debitsRes,
     prospectsThisWeekRes,
@@ -55,6 +81,7 @@ async function getDashboardData() {
     trendDebitsRes,
   ] = await Promise.all([
     getDolarBlue(),
+    getMpBalance(mpUserId),
     supabase
       .from("movements")
       .select("amount, currency")
@@ -133,6 +160,7 @@ async function getDashboardData() {
 
   return {
     dolarBlue,
+    mpBalance,
     totalIncomeUSD,
     totalExpensesUSD,
     netoUSD,
@@ -197,6 +225,32 @@ export default async function DashboardPage() {
           href="/proyectos"
         />
       </div>
+
+      {/* MP Balance */}
+      {data.mpBalance && (
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Wallet className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Saldo Mercado Pago</span>
+          </div>
+          <div className="flex gap-6">
+            <div>
+              <p className="text-xs text-muted-foreground">Disponible</p>
+              <p className="text-xl font-bold text-foreground">
+                {formatCurrency(data.mpBalance.available_balance, "ARS")}
+              </p>
+            </div>
+            {data.mpBalance.unavailable_balance > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground">En proceso</p>
+                <p className="text-xl font-bold text-muted-foreground">
+                  {formatCurrency(data.mpBalance.unavailable_balance, "ARS")}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Dólar blue */}
       <div className="bg-card border border-border rounded-lg p-4">
