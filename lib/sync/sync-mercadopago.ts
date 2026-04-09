@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { MpRule } from "@/lib/types/database.types";
+import { getMpAccessToken } from "@/lib/mp/token";
 
 const MP_API = "https://api.mercadopago.com";
 const ML_API = "https://api.mercadolibre.com";
@@ -45,9 +45,9 @@ interface MpRule {
   is_recurring: boolean;
 }
 
-async function apiFetch<T>(path: string): Promise<T> {
+async function apiFetch<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${MP_API}${path}`, {
-    headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
   if (!res.ok) {
@@ -68,11 +68,11 @@ function buildRuleMap(rules: MpRule[]): Map<string, MpRule> {
 // ── Settlement report helpers ─────────────────────────────────────────────────
 
 /** Fire-and-forget: triggers a new report generation for the next sync cycle */
-function triggerReportGeneration(begin: Date, end: Date): void {
+function triggerReportGeneration(begin: Date, end: Date, token: string): void {
   fetch(`${MP_API}/v1/account/settlement_report`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -86,9 +86,9 @@ function triggerReportGeneration(begin: Date, end: Date): void {
 }
 
 /** Returns the most recently modified processed report file name, or null */
-async function getLatestProcessedReport(): Promise<string | null> {
+async function getLatestProcessedReport(token: string): Promise<string | null> {
   try {
-    const list = await apiFetch<ReportListItem[]>("/v1/account/settlement_report/list");
+    const list = await apiFetch<ReportListItem[]>("/v1/account/settlement_report/list", token);
     const processed = list
       .filter((r) => r.status === "processed" && r.file_name)
       .sort((a, b) => new Date(b.last_modified).getTime() - new Date(a.last_modified).getTime());
@@ -98,9 +98,9 @@ async function getLatestProcessedReport(): Promise<string | null> {
   }
 }
 
-async function downloadReportCsv(fileName: string): Promise<string> {
+async function downloadReportCsv(fileName: string, token: string): Promise<string> {
   const res = await fetch(`${MP_API}/v1/account/settlement_report/${fileName}`, {
-    headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`CSV download failed: ${res.status}`);
@@ -158,10 +158,11 @@ function parseSettlementCsv(csv: string): CsvMovement[] {
 
 export async function runMercadoPagoSync(): Promise<{ synced: number }> {
   const supabase = createAdminClient();
+  const token = await getMpAccessToken();
 
   // 1. Get own MP user ID
   const me = await fetch(`${ML_API}/users/me`, {
-    headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   }).then((r) => r.json() as Promise<MpUser>);
   const myUserId = me.id;
@@ -189,11 +190,13 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
   const [inbound, outbound, reportFileName] = await Promise.all([
     apiFetch<MpSearchResponse>(
       `/v1/payments/search?sort=date_created&criteria=desc${dateParams}`,
+      token,
     ),
     apiFetch<MpSearchResponse>(
       `/v1/payments/search?payer.id=${myUserId}&sort=date_created&criteria=desc${dateParams}`,
+      token,
     ),
-    getLatestProcessedReport(),
+    getLatestProcessedReport(token),
   ]);
 
   // 4. Load mp_rules
@@ -260,7 +263,7 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
   // 7. Process latest settlement report (adds money_transfers + interest not in payments/search)
   let settlementCount = 0;
   if (reportFileName) {
-    const csv = await downloadReportCsv(reportFileName);
+    const csv = await downloadReportCsv(reportFileName, token);
     const csvMovements = parseSettlementCsv(csv);
 
     const knownMpIds = new Set(paymentsMovements.map((m) => m.mp_id));
@@ -290,7 +293,7 @@ export async function runMercadoPagoSync(): Promise<{ synced: number }> {
   }
 
   // 8. Trigger new report generation for next sync (fire and forget)
-  triggerReportGeneration(beginDate, endDate);
+  triggerReportGeneration(beginDate, endDate, token);
 
   // 9. Save sync timestamp
   await supabase.from("settings").upsert(
