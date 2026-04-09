@@ -15,19 +15,20 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SortableHead } from "@/components/shared/sortable-head";
 import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Pencil, Users, MessageSquare, Check } from "lucide-react";
+import { Pencil, Users, MessageSquare, Check, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PROSPECT_STATUS_CONFIG, CONTACT_TYPE_LABELS } from "@/lib/constants/labels";
 import { useUpdateProspect } from "@/hooks/use-prospects";
 import { useSectors } from "@/hooks/use-sectors";
-import { useContacts } from "@/hooks/use-contacts";
-import type { Prospect, ProspectStatus } from "@/lib/types/database.types";
+import { useContacts, useCreateContact, useDeleteContact } from "@/hooks/use-contacts";
+import type { Prospect, ProspectStatus, Contact, ContactType } from "@/lib/types/database.types";
 
 type EditableField = "name" | "phone";
 
@@ -46,6 +47,79 @@ const PROSPECT_STATUS_ORDER: Record<string, number> = {
   cerrado: 3,
   perdido: 4,
 };
+
+function ContactsCell({ contacts, prospectId }: { contacts: Contact[]; prospectId: string }) {
+  const [type, setType] = useState<ContactType>("email");
+  const [value, setValue] = useState("");
+  const createContact = useCreateContact();
+  const deleteContact = useDeleteContact();
+  const firstContact = contacts[0];
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!value.trim()) return;
+    await createContact.mutateAsync({ prospect_id: prospectId, type, value: value.trim() });
+    setValue("");
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer text-left">
+          {firstContact ? (
+            <>
+              <span className="truncate max-w-[120px]">{firstContact.value}</span>
+              {contacts.length > 1 && (
+                <span className="text-xs bg-secondary rounded px-1 shrink-0">+{contacts.length - 1}</span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground/40 italic">Sin contacto</span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-3 space-y-2">
+        {contacts.length > 0 && (
+          <div className="space-y-1.5">
+            {contacts.map((c) => (
+              <div key={c.id} className="flex items-center gap-2 text-xs">
+                <span className="text-muted-foreground w-16 shrink-0">{CONTACT_TYPE_LABELS[c.type]}</span>
+                <span className="flex-1 truncate">{c.value}</span>
+                <button
+                  onClick={() => deleteContact.mutate(c.id)}
+                  className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {contacts.length > 0 && <div className="border-t border-border" />}
+        <form onSubmit={handleAdd} className="flex items-center gap-1.5">
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as ContactType)}
+            className="text-xs bg-background border border-input rounded px-1.5 py-1 shrink-0 outline-none"
+          >
+            {Object.entries(CONTACT_TYPE_LABELS).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Valor"
+            className="flex-1 text-xs bg-transparent border-b border-input outline-none py-1 min-w-0"
+          />
+          <Button type="submit" size="icon" variant="ghost" className="h-6 w-6 shrink-0" disabled={createContact.isPending}>
+            <Plus className="h-3 w-3" />
+          </Button>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 interface ProspectTableProps {
   prospects: Prospect[];
@@ -226,7 +300,6 @@ export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTablePro
         <TableBody>
           {sorted.map((prospect) => {
             const contacts = contactsByProspectId[prospect.id] ?? [];
-            const firstContact = contacts[0];
             return (
               <TableRow key={prospect.id} className="hover:bg-secondary/50">
 
@@ -303,31 +376,8 @@ export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTablePro
                 </TableCell>
 
                 {/* Contacto */}
-                <TableCell className="text-sm text-muted-foreground">
-                  {firstContact ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate max-w-[140px]">{firstContact.value}</span>
-                      {contacts.length > 1 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-xs text-muted-foreground bg-secondary rounded px-1 cursor-default shrink-0">
-                              +{contacts.length - 1}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent align="start" className="space-y-1">
-                            {contacts.map((c) => (
-                              <p key={c.id} className="text-xs">
-                                <span className="text-muted-foreground">{CONTACT_TYPE_LABELS[c.type]}: </span>
-                                {c.value}
-                              </p>
-                            ))}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground/40 italic">Sin contacto</span>
-                  )}
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <ContactsCell contacts={contacts} prospectId={prospect.id} />
                 </TableCell>
 
                 {/* Teléfono */}
