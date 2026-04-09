@@ -193,7 +193,7 @@ INSERT INTO prospects (name, phone, sector, status, notes) VALUES
 
   -- Otro
   ('Vision Hair Studio',     '+54 9 3412 78-1223',  'otro',         'contactado',    '1.528 reviews 5.0★ en Fresha. Fuerte boca a boca. Sugerido: Landing + reservas + RRSS'),
-  ('Essenza Barbería',       NULL,                  'otro',         'cerrado',       '5.0★ Fresha 2026. Sin web, alta competencia en el rubro. Sugerido: Landing + sistema de turnos'),
+  ('Essenza Barbería',       NULL,                  'otro',         'contactado',    '5.0★ Fresha 2026. Sin web, alta competencia en el rubro. Sugerido: Landing + sistema de turnos'),
   ('ESSENZA Barberia',       '+54 9 3417 18-9339',  'otro',         'contactado',    NULL),
   ('Cielito Encantando',     '+54 9 3416 16-5692',  'otro',         'contactado',    NULL);
 
