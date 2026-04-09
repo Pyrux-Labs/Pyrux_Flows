@@ -1,5 +1,5 @@
 -- ============================================================
---  SCHEMA v2: Pyrux Flows — CRM + Finanzas
+--  SCHEMA v3: Pyrux Flows — CRM + Finanzas
 --  Compatible con Supabase (PostgreSQL 15+)
 --  Incluye teardown completo — se puede correr desde cero.
 --  Orden: 1) este archivo  2) seed.sql
@@ -10,6 +10,7 @@
 -- TEARDOWN — limpia todo antes de recrear
 -- ------------------------------------------------------------
 
+DROP TABLE IF EXISTS contacts          CASCADE;
 DROP TABLE IF EXISTS settings          CASCADE;
 DROP TABLE IF EXISTS mp_rules          CASCADE;
 DROP TABLE IF EXISTS movements         CASCADE;
@@ -18,10 +19,12 @@ DROP TABLE IF EXISTS projects          CASCADE;
 DROP TABLE IF EXISTS services          CASCADE;
 DROP TABLE IF EXISTS clients           CASCADE;
 DROP TABLE IF EXISTS prospects         CASCADE;
+DROP TABLE IF EXISTS sectors           CASCADE;
 
 DROP FUNCTION IF EXISTS set_updated_at()     CASCADE;
 DROP FUNCTION IF EXISTS prospect_to_client() CASCADE;
 
+DROP TYPE IF EXISTS contact_type_enum       CASCADE;
 DROP TYPE IF EXISTS movement_type_enum      CASCADE;
 DROP TYPE IF EXISTS payment_status_enum     CASCADE;
 DROP TYPE IF EXISTS service_unit_enum       CASCADE;
@@ -34,33 +37,13 @@ DROP TYPE IF EXISTS prospect_status_enum    CASCADE;
 
 -- ------------------------------------------------------------
 -- TIPOS ENUMERADOS
+-- Solo para valores que llevan comportamiento acoplado en el
+-- frontend (colores, orden, lógica). Los rubros van en tabla.
 -- ------------------------------------------------------------
 
 CREATE TYPE prospect_status_enum AS ENUM (
   'sin_contactar', 'contactado', 'en_negociacion', 'cerrado', 'perdido'
 );
-
-CREATE TYPE sector_enum AS ENUM (
-  'contabilidad',
-  'construccion',
-  'consultoria',
-  'dental',
-  'educacion',
-  'estetica',
-  'fitness',
-  'gastronomia',
-  'inmobiliaria',
-  'legal',
-  'logistica',
-  'medico',
-  'moda',
-  'ong',
-  'retail',
-  'tecnologia',
-  'turismo',
-  'otro'
-);
-
 
 CREATE TYPE project_status_enum AS ENUM (
   'desarrollo', 'pausado', 'completado', 'cancelado', 'mantenimiento'
@@ -74,17 +57,32 @@ CREATE TYPE service_category_enum AS ENUM (
 
 CREATE TYPE service_unit_enum AS ENUM ('proyecto', 'hora', 'mes');
 
-CREATE TYPE payment_status_enum AS ENUM (
-  'pendiente', 'pagado'
-);
+CREATE TYPE payment_status_enum AS ENUM ('pendiente', 'pagado');
 
 CREATE TYPE movement_type_enum AS ENUM ('credit', 'debit');
 
+CREATE TYPE contact_type_enum AS ENUM (
+  'email', 'instagram', 'facebook', 'whatsapp', 'telefono', 'linkedin', 'otro'
+);
+
 
 -- ------------------------------------------------------------
--- 1. PROSPECTS
--- Contactos en etapa de venta. Al pasar a "cerrado" se crea
--- automáticamente un cliente (ver trigger más abajo).
+-- 1. SECTORS
+-- Tabla de referencia para rubros. Se gestiona desde el
+-- dashboard de Supabase — agregar una fila es suficiente para
+-- que aparezca en todos los dropdowns del frontend.
+-- ------------------------------------------------------------
+
+CREATE TABLE sectors (
+  id     text PRIMARY KEY,
+  label  text NOT NULL
+);
+
+COMMENT ON TABLE sectors IS 'Rubros de clientes y prospectos. Se gestiona desde Supabase — no requiere cambios de código.';
+
+
+-- ------------------------------------------------------------
+-- 2. PROSPECTS
 -- ------------------------------------------------------------
 
 CREATE TABLE prospects (
@@ -93,21 +91,17 @@ CREATE TABLE prospects (
   updated_at  timestamptz NOT NULL DEFAULT now(),
 
   name        text NOT NULL,
-  email       text,
   phone       text,
-  sector      sector_enum,
-  status      prospect_status_enum NOT NULL DEFAULT 'contactado',
+  sector      text REFERENCES sectors (id) ON DELETE SET NULL,
+  status      prospect_status_enum NOT NULL DEFAULT 'sin_contactar',
   notes       text
 );
 
 COMMENT ON TABLE prospects IS 'Contactos en proceso de venta. Al cerrarse generan un client automáticamente.';
-COMMENT ON COLUMN prospects.sector IS 'Rubro del negocio del prospecto.';
 
 
 -- ------------------------------------------------------------
--- 2. CLIENTS
--- Se genera automáticamente cuando un prospect llega a "cerrado".
--- También se puede crear directo si entró sin pasar por prospects.
+-- 3. CLIENTS
 -- ------------------------------------------------------------
 
 CREATE TABLE clients (
@@ -118,9 +112,8 @@ CREATE TABLE clients (
   prospect_id uuid REFERENCES prospects (id) ON DELETE SET NULL,
 
   name        text NOT NULL,
-  email       text,
   phone       text,
-  sector      sector_enum,
+  sector      text REFERENCES sectors (id) ON DELETE SET NULL,
   started_at  date NOT NULL DEFAULT CURRENT_DATE,
   notes       text
 );
@@ -130,9 +123,33 @@ COMMENT ON COLUMN clients.prospect_id IS 'Nullable: algunos clientes entran dire
 
 
 -- ------------------------------------------------------------
--- 3. SERVICES
--- Catálogo de referencia. El precio real siempre va en el
--- proyecto o en el contrato de mantenimiento.
+-- 4. CONTACTS
+-- Reemplaza el campo email. Un prospecto o cliente puede tener
+-- N contactos de distintos tipos (email, instagram, etc).
+-- Solo uno de prospect_id / client_id puede estar seteado.
+-- ------------------------------------------------------------
+
+CREATE TABLE contacts (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+
+  prospect_id  uuid REFERENCES prospects (id) ON DELETE CASCADE,
+  client_id    uuid REFERENCES clients (id) ON DELETE CASCADE,
+
+  type         contact_type_enum NOT NULL,
+  value        text NOT NULL,
+
+  CONSTRAINT contacts_one_parent CHECK (
+    (prospect_id IS NOT NULL AND client_id IS NULL) OR
+    (prospect_id IS NULL AND client_id IS NOT NULL)
+  )
+);
+
+COMMENT ON TABLE contacts IS 'Medios de contacto de prospectos y clientes. Reemplaza el campo email — soporta email, instagram, whatsapp, etc.';
+
+
+-- ------------------------------------------------------------
+-- 5. SERVICES
 -- ------------------------------------------------------------
 
 CREATE TABLE services (
@@ -153,11 +170,7 @@ COMMENT ON TABLE services IS 'Catálogo de servicios. base_price es orientativo;
 
 
 -- ------------------------------------------------------------
--- 4. PROJECTS
--- Un cliente puede tener N proyectos a lo largo del tiempo.
--- El precio total del proyecto va acá. Los pagos van en project_payments.
--- Si el proyecto deriva en mantenimiento, los campos maintenance_*
--- se completan cuando el status pasa a 'mantenimiento'.
+-- 6. PROJECTS
 -- ------------------------------------------------------------
 
 CREATE TABLE projects (
@@ -176,7 +189,6 @@ CREATE TABLE projects (
   currency    currency_enum NOT NULL DEFAULT 'USD',
   notes       text,
 
-  -- Mantenimiento (se completa solo si el proyecto deriva en mantenimiento)
   maintenance_amount            numeric(12, 2),
   maintenance_currency          currency_enum NOT NULL DEFAULT 'USD',
   maintenance_since             date,
@@ -195,10 +207,7 @@ COMMENT ON COLUMN projects.maintenance_price_updated_at IS 'Fecha del último aj
 
 
 -- ------------------------------------------------------------
--- 5. PROJECT_PAYMENTS
--- Hitos de pago de un proyecto (anticipo, entrega, etc).
--- No se usa para cuotas de mantenimiento mensual — eso se
--- controla via movements.
+-- 7. PROJECT_PAYMENTS
 -- ------------------------------------------------------------
 
 CREATE TABLE project_payments (
@@ -215,7 +224,6 @@ CREATE TABLE project_payments (
   status      payment_status_enum NOT NULL DEFAULT 'pendiente',
   notes       text,
 
-  -- Link opcional al movimiento de MP que confirmó el pago (FK se agrega abajo)
   movement_id uuid
 );
 
@@ -224,10 +232,7 @@ COMMENT ON COLUMN project_payments.movement_id IS 'Movimiento de MP que confirm�
 
 
 -- ------------------------------------------------------------
--- 6. MOVEMENTS
--- Todos los movimientos de la cuenta de Mercado Pago.
--- Credits = ingresos, debits = egresos.
--- Se sincronizan automáticamente via cron horario.
+-- 8. MOVEMENTS
 -- ------------------------------------------------------------
 
 CREATE TABLE movements (
@@ -241,14 +246,12 @@ CREATE TABLE movements (
   description         text,
   date                timestamptz NOT NULL,
 
-  -- Enriquecimiento manual o por regla
   project_id          uuid REFERENCES projects (id) ON DELETE SET NULL,
   category            text,
   is_recurring        boolean NOT NULL DEFAULT false,
   notes               text,
   exchange_rate       numeric(12, 2),
 
-  -- Metadatos de MP
   counterpart_id      text,
   counterpart_name    text
 );
@@ -258,18 +261,13 @@ COMMENT ON COLUMN movements.mp_id IS 'ID único de MP. Usado para deduplicar en 
 COMMENT ON COLUMN movements.counterpart_id IS 'ID del pagador (credit) o destinatario (debit) en MP. Base para mp_rules.';
 COMMENT ON COLUMN movements.is_recurring IS 'Si true, se incluye en el forecast del mes siguiente.';
 
-
--- FK de project_payments → movements (movements ya existe)
 ALTER TABLE project_payments
   ADD CONSTRAINT fk_project_payments_movement
   FOREIGN KEY (movement_id) REFERENCES movements (id) ON DELETE SET NULL;
 
 
 -- ------------------------------------------------------------
--- 7. MP_RULES
--- Reglas de auto-asignación: cuando llega un movimiento de
--- cierto counterpart_id, se le asigna automáticamente el
--- proyecto y la categoría definidos en la regla.
+-- 9. MP_RULES
 -- ------------------------------------------------------------
 
 CREATE TABLE mp_rules (
@@ -291,8 +289,7 @@ COMMENT ON COLUMN mp_rules.counterpart_id IS 'ID del payer (credit) o collector 
 
 
 -- ------------------------------------------------------------
--- 8. SETTINGS
--- Configuración general de la app.
+-- 10. SETTINGS
 -- ------------------------------------------------------------
 
 CREATE TABLE settings (
@@ -305,11 +302,31 @@ COMMENT ON TABLE settings IS 'Configuración general. opening_balance_ars es el 
 
 
 -- ------------------------------------------------------------
+-- RLS — desactivado (app interna, sin usuarios públicos)
+-- ------------------------------------------------------------
+
+ALTER TABLE sectors          DISABLE ROW LEVEL SECURITY;
+ALTER TABLE prospects        DISABLE ROW LEVEL SECURITY;
+ALTER TABLE clients          DISABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts         DISABLE ROW LEVEL SECURITY;
+ALTER TABLE services         DISABLE ROW LEVEL SECURITY;
+ALTER TABLE projects         DISABLE ROW LEVEL SECURITY;
+ALTER TABLE project_payments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE movements        DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mp_rules         DISABLE ROW LEVEL SECURITY;
+ALTER TABLE settings         DISABLE ROW LEVEL SECURITY;
+
+
+-- ------------------------------------------------------------
 -- ÍNDICES
 -- ------------------------------------------------------------
 
 CREATE INDEX idx_prospects_status           ON prospects (status);
+CREATE INDEX idx_prospects_sector           ON prospects (sector);
 CREATE INDEX idx_clients_prospect           ON clients (prospect_id);
+CREATE INDEX idx_clients_sector             ON clients (sector);
+CREATE INDEX idx_contacts_prospect          ON contacts (prospect_id);
+CREATE INDEX idx_contacts_client            ON contacts (client_id);
 CREATE INDEX idx_projects_client            ON projects (client_id);
 CREATE INDEX idx_projects_status            ON projects (status);
 CREATE INDEX idx_project_payments_project   ON project_payments (project_id);
@@ -353,17 +370,26 @@ CREATE TRIGGER trg_projects_updated_at
 
 -- ------------------------------------------------------------
 -- TRIGGER: prospect cerrado → crear client automáticamente
+-- Al crear el cliente, migra los contactos del prospect.
 -- ------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION prospect_to_client()
 RETURNS TRIGGER AS $$
+DECLARE
+  new_client_id uuid;
 BEGIN
   IF NEW.status = 'cerrado' AND OLD.status <> 'cerrado' THEN
     IF NOT EXISTS (
       SELECT 1 FROM clients WHERE prospect_id = NEW.id
     ) THEN
-      INSERT INTO clients (prospect_id, name, email, phone, sector)
-      VALUES (NEW.id, NEW.name, NEW.email, NEW.phone, NEW.sector);
+      INSERT INTO clients (prospect_id, name, phone, sector)
+      VALUES (NEW.id, NEW.name, NEW.phone, NEW.sector)
+      RETURNING id INTO new_client_id;
+
+      -- Migrar contactos del prospect al nuevo cliente
+      UPDATE contacts
+      SET client_id = new_client_id, prospect_id = NULL
+      WHERE prospect_id = NEW.id;
     END IF;
   END IF;
   RETURN NEW;
@@ -373,13 +399,3 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_prospect_to_client
   AFTER UPDATE ON prospects
   FOR EACH ROW EXECUTE FUNCTION prospect_to_client();
-
-
--- ------------------------------------------------------------
--- SEED: configuración inicial
--- Ajustar opening_balance_ars al saldo real antes del primer sync.
--- ------------------------------------------------------------
-
-INSERT INTO settings (key, value, updated_at) VALUES
-  ('opening_balance_ars', '36409.85', now()),
-  ('opening_balance_date', '2026-04-01', now());

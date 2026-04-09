@@ -1,12 +1,37 @@
 -- ============================================================
---  SEED: Pyrux Flows — datos reales
+--  SEED v3: Pyrux Flows — datos reales al 2026-04-09
 --  Ejecutar después de schema.sql
---  Idempotente: usa ON CONFLICT DO NOTHING en todos los INSERT
 -- ============================================================
 
 
 -- ------------------------------------------------------------
--- 1. SERVICES (tarifario de Pyrux)
+-- 1. SECTORS
+-- ------------------------------------------------------------
+
+INSERT INTO sectors (id, label) VALUES
+  ('contabilidad', 'Contabilidad'),
+  ('construccion', 'Construcción'),
+  ('consultoria',  'Consultoría'),
+  ('dental',       'Dental'),
+  ('educacion',    'Educación'),
+  ('estetica',     'Estética'),
+  ('fitness',      'Fitness'),
+  ('gastronomia',  'Gastronomía'),
+  ('inmobiliaria', 'Inmobiliaria'),
+  ('legal',        'Legal'),
+  ('logistica',    'Logística'),
+  ('medico',       'Médico'),
+  ('moda',         'Moda'),
+  ('ong',          'ONG'),
+  ('retail',       'Retail'),
+  ('ropa_bebe',    'Ropa bebé'),
+  ('tecnologia',   'Tecnología'),
+  ('turismo',      'Turismo'),
+  ('otro',         'Otro');
+
+
+-- ------------------------------------------------------------
+-- 2. SERVICES (tarifario de Pyrux)
 -- ------------------------------------------------------------
 
 INSERT INTO services (id, name, description, base_price, currency, unit, category, active)
@@ -46,39 +71,46 @@ VALUES
     'Personalizado',
     'Sistemas a medida, IA, plataformas. Precio y entrega a definir según requerimientos.',
     NULL, 'USD', 'proyecto', 'web', true
-  )
-ON CONFLICT (id) DO NOTHING;
+  );
 
 
 -- ------------------------------------------------------------
--- 2. CLIENTS
+-- 3. CLIENTS
 -- ------------------------------------------------------------
 
-INSERT INTO clients (id, name, email, phone, sector, started_at, notes)
+INSERT INTO clients (id, prospect_id, name, phone, sector, started_at, notes)
 VALUES
-  -- Cliente interno: proyectos propios de la agencia
   (
     'b0000002-0000-0000-0000-000000000001',
+    NULL,
     'Pyrux',
-    NULL, NULL, NULL,
+    '+54 9 3416 94-1225',
+    'otro',
     '2026-01-01',
     'Cliente interno — proyectos propios de la agencia.'
   ),
-  -- Primer cliente real
   (
     'b0000002-0000-0000-0000-000000000002',
+    NULL,
     'MedMind',
-    'guille.bassi@hotmail.com',
     '+54 9 341 353-6452',
-    'medico',
-    '2026-03-05',
-    'Primer cliente Pyrux. Contacto: Guillermina Bassi. Sin contrato firmado — formalizar urgente.'
-  )
-ON CONFLICT (id) DO NOTHING;
+    'otro',
+    '2026-03-01',
+    'Empresa de traducción especializada en medicina y educación, entre español e inglés. Nombre del contacto: Guillermina Bassi.'
+  );
 
 
 -- ------------------------------------------------------------
--- 3. PROJECTS
+-- 4. CONTACTS (de clientes)
+-- ------------------------------------------------------------
+
+INSERT INTO contacts (client_id, type, value) VALUES
+  ('b0000002-0000-0000-0000-000000000001', 'email', 'pyrux@pyrux.com.ar'),
+  ('b0000002-0000-0000-0000-000000000002', 'email', 'info@medmindls.com');
+
+
+-- ------------------------------------------------------------
+-- 5. PROJECTS
 -- ------------------------------------------------------------
 
 INSERT INTO projects (
@@ -87,22 +119,20 @@ INSERT INTO projects (
   maintenance_amount, maintenance_currency, maintenance_since
 )
 VALUES
-  -- Proyecto interno: sitio web de Pyrux
   (
     'c0000003-0000-0000-0000-000000000001',
-    'b0000002-0000-0000-0000-000000000001', -- Pyrux
+    'b0000002-0000-0000-0000-000000000001',
     NULL,
     'Portfolio Pyrux',
-    'mantenimiento',
+    'desarrollo',
     '2026-01-01',
     NULL, 'USD',
     'Web institucional de la agencia. En producción en pyrux.com.ar.',
     NULL, 'USD', NULL
   ),
-  -- Proyecto interno: producto SaaS
   (
     'c0000003-0000-0000-0000-000000000002',
-    'b0000002-0000-0000-0000-000000000001', -- Pyrux
+    'b0000002-0000-0000-0000-000000000001',
     NULL,
     'Goal Planner',
     'desarrollo',
@@ -111,74 +141,85 @@ VALUES
     'Producto interno Pyrux. En desarrollo. goalplanner.com.ar',
     NULL, 'USD', NULL
   ),
-  -- Proyecto real: MedMind
   (
     'c0000003-0000-0000-0000-000000000003',
-    'b0000002-0000-0000-0000-000000000002', -- MedMind
-    'a0000001-0000-0000-0000-000000000006', -- Personalizado
+    'b0000002-0000-0000-0000-000000000002',
+    'a0000001-0000-0000-0000-000000000006',
     'MedMind',
     'mantenimiento',
     '2026-03-05',
     300.00, 'USD',
     'Primer proyecto Pyrux. Desarrollo personalizado $300 USD. Mantenimiento activo $20 USD/mes.',
     20.00, 'USD', '2026-03-05'
-  )
-ON CONFLICT (id) DO NOTHING;
+  );
 
 
 -- ------------------------------------------------------------
--- 4. PROSPECTS (base Rosario — 30 contactos)
+-- 6. PROSPECTS (31 contactos reales al 2026-04-09)
 -- ------------------------------------------------------------
 
-INSERT INTO prospects (name, sector, status, notes)
-VALUES
-  -- Estudios contables (sin contactar)
-  ('Estudio Priotti',        'contabilidad', 'sin_contactar', 'Sitio anticuado, sin SSL. Perfil profesional fuerte. Sugerido: Rediseño web + SSL'),
-  ('Estudio Herusa',         'contabilidad', 'sin_contactar', 'Sitio sin blog ni portal de clientes, diseño viejo. Sugerido: Rediseño + portal clientes'),
-  ('Guastella & Asoc.',      'contabilidad', 'sin_contactar', '30+ años, sitio brochure sin actualizaciones. Sugerido: Rediseño web'),
-  ('Frasesores',             'contabilidad', 'sin_contactar', 'Sitio con sistema de compra genérico, nada profesional. Sugerido: Rediseño completo'),
-  ('Contador CPCE II',       'contabilidad', 'sin_contactar', 'Miles de contadores matriculados sin web. Target masivo. Sugerido: Landing page profesional'),
+INSERT INTO prospects (name, phone, sector, status, notes) VALUES
 
-  -- Estudios jurídicos (sin contactar)
-  ('Chiana & Cigno',         'legal', 'sin_contactar', 'Solo en directorio. Firma joven, diferenciación posible. Sugerido: Sitio institucional'),
-  ('Moreira & Asociados',    'legal', 'sin_contactar', 'Sedes en Rosario, San Lorenzo y Casilda. Sin web propia. Sugerido: Sitio multi-sede'),
-  ('Blando Figueroa y Asoc.','legal', 'sin_contactar', 'Solo directorio. Fuerte en penal, sin identidad digital. Sugerido: Sitio institucional'),
-  ('Copes & Asociados',      'legal', 'sin_contactar', 'Equipo de profesionales, cero presencia web propia. Sugerido: Sitio institucional'),
-  ('V&C Estudio Jurídico',   'legal', 'sin_contactar', 'Tres sedes. Oportunidad de CMS multi-sede. Sugerido: Sitio + CMS multi-sede'),
-  ('Robiolo & Asociados',    'legal', 'sin_contactar', 'Enfocados en empresas. Ticket alto potencial. Sugerido: Sitio institucional premium'),
+  -- Contabilidad
+  ('Estudio Priotti',        NULL,                  'contabilidad', 'sin_contactar', 'Sitio anticuado, sin SSL. Perfil profesional fuerte. Sugerido: Rediseño web + SSL'),
+  ('Estudio Herusa',         NULL,                  'contabilidad', 'sin_contactar', 'Sitio sin blog ni portal de clientes, diseño viejo. Sugerido: Rediseño + portal clientes'),
+  ('Frasesores',             NULL,                  'contabilidad', 'sin_contactar', 'Sitio con sistema de compra genérico, nada profesional. Sugerido: Rediseño completo'),
+  ('Contador CPCE II',       NULL,                  'contabilidad', 'sin_contactar', 'Miles de contadores matriculados sin web. Target masivo. Sugerido: Landing page profesional'),
 
-  -- Estética (sin contactar)
-  ('Centro de Estética Oroño','estetica', 'sin_contactar', '16K seguidores en IG. Alta demanda probada, sin web. Sugerido: Landing + sistema de turnos'),
-  ('Mudra Rosario',           'estetica', 'sin_contactar', 'Solo Instagram. Formato spa = ticket alto. Sugerido: Web + reservas online'),
-  ('Kymè Studio',             'estetica', 'sin_contactar', '5★ en Fresha, muy buenas reseñas. Sin web propia. Sugerido: Landing + turnos'),
-  ('Tania — El Amor Por Tu Piel','estetica','sin_contactar','Buenas reseñas en Fresha, sin activo digital propio. Sugerido: Landing + reservas'),
+  -- Legal
+  ('Chiana & Cigno',         NULL,                  'legal',        'sin_contactar', 'Solo en directorio. Firma joven, diferenciación posible. Sugerido: Sitio institucional'),
+  ('Moreira & Asociados',    NULL,                  'legal',        'sin_contactar', 'Sedes en Rosario, San Lorenzo y Casilda. Sin web propia. Sugerido: Sitio multi-sede'),
+  ('Blando Figueroa y Asoc.',NULL,                  'legal',        'sin_contactar', 'Solo directorio. Fuerte en penal, sin identidad digital. Sugerido: Sitio institucional'),
+  ('Copes & Asociados',      NULL,                  'legal',        'sin_contactar', 'Equipo de profesionales, cero presencia web propia. Sugerido: Sitio institucional'),
+  ('V&C Estudio Jurídico',   '+54 9 3412 98-4441',  'legal',        'sin_contactar', 'Tres sedes. Oportunidad de CMS multi-sede. Sugerido: Sitio + CMS multi-sede'),
+  ('Robiolo & Asociados',    NULL,                  'legal',        'sin_contactar', 'Enfocados en empresas. Ticket alto potencial. Sugerido: Sitio institucional premium'),
 
-  -- Estética (pendiente / contactado)
-  ('Estetica Médica Brarda',  'estetica', 'sin_contactar', 'Sitio desactualizado, sin SSL. Procedimientos médicos. Sugerido: Rediseño + SSL + credenciales'),
-  ('Be and Feel',             'estetica', 'sin_contactar', '13K seguidores IG activo. Sin web propia. Sugerido: Web + reservas + RRSS'),
+  -- Estética
+  ('Centro de Estética Oroño',NULL,                 'estetica',     'sin_contactar', '16K seguidores en IG. Alta demanda probada, sin web. Sugerido: Landing + sistema de turnos'),
+  ('Mudra Rosario',          NULL,                  'estetica',     'sin_contactar', 'Solo Instagram. Formato spa = ticket alto. Sugerido: Web + reservas online'),
+  ('Kymè Studio',            NULL,                  'estetica',     'sin_contactar', '5★ en Fresha, muy buenas reseñas. Sin web propia. Sugerido: Landing + turnos'),
+  ('Tania — El Amor Por Tu Piel', NULL,             'estetica',     'sin_contactar', 'Buenas reseñas en Fresha, sin activo digital propio. Sugerido: Landing + reservas'),
+  ('Estetica Médica Brarda', NULL,                  'estetica',     'sin_contactar', 'Sitio desactualizado, sin SSL. Procedimientos médicos. Sugerido: Rediseño + SSL + credenciales'),
+  ('Be and Feel',            '+54 9 3416 94-3777',  'estetica',     'contactado',    '13K seguidores IG activo. Sin web propia. Sugerido: Web + reservas + RRSS'),
 
-  -- Retail / E-commerce (contactado)
-  ('Blush Rosario',           'retail', 'sin_contactar', '46K seguidores IG, venta solo por DM. Ideal tienda online. Sugerido: E-commerce'),
-  ('GC Representaciones',     'retail', 'sin_contactar', '37K seguidores. Venta por redes, gran oportunidad e-comm. Sugerido: Plataforma e-commerce'),
-  ('Serendipia Rosario',      'retail', 'sin_contactar', 'Activa en IG. Emprendimiento listo para escalar. Sugerido: Tienda online'),
-  ('Ferreterías / Mueblerías','retail', 'sin_contactar', 'Sin link a sitio en directorio. Universo amplio. Sugerido: Landing + catálogo'),
+  -- Retail / Moda
+  ('Blush Rosario',          NULL,                  'retail',       'sin_contactar', '46K seguidores IG, venta solo por DM. Ideal tienda online. Sugerido: E-commerce'),
+  ('GC Representaciones',    NULL,                  'retail',       'sin_contactar', '37K seguidores. Venta por redes, gran oportunidad e-comm. Sugerido: Plataforma e-commerce'),
+  ('Serendipia Rosario',     NULL,                  'retail',       'sin_contactar', 'Activa en IG. Emprendimiento listo para escalar. Sugerido: Tienda online'),
+  ('Ferreterías / Mueblerías',NULL,                 'retail',       'sin_contactar', 'Sin link a sitio en directorio. Universo amplio. Sugerido: Landing + catálogo'),
+  ('Z Market',               NULL,                  'moda',         'sin_contactar', 'Solo FB/IG activo. Sin tienda online propia. Sugerido: E-commerce / tienda online'),
 
-  -- Gastronomía (contactado)
-  ('Excalibur (Holiday Inn)', 'gastronomia', 'sin_contactar', '4.7★ TripAdvisor, buen alcance digital pero puede crecer. Sugerido: Gestión RRSS + contenido'),
-  ('Chinchibira',             'gastronomia', 'sin_contactar', 'Bar #1 TripAdvisor Rosario 2025. 4.6★, 950 opiniones. Sugerido: Web + RRSS + WhatsApp marketing'),
-  ('Chicharra Asador',        'gastronomia', 'sin_contactar', '538 opiniones 4.4★. Sin web propia. Sugerido: Landing + reservas online'),
-  ('Los Jardines',            'gastronomia', 'sin_contactar', '770 opiniones 4.1★. Web existente. Sugerido: Mejora web + CMS'),
+  -- Gastronomía
+  ('Excalibur (Holiday Inn)', NULL,                 'gastronomia',  'sin_contactar', '4.7★ TripAdvisor, buen alcance digital pero puede crecer. Sugerido: Gestión RRSS + contenido'),
+  ('Chinchibira',            NULL,                  'gastronomia',  'sin_contactar', 'Bar #1 TripAdvisor Rosario 2025. 4.6★, 950 opiniones. Sugerido: Web + RRSS + WhatsApp marketing'),
+  ('Chicharra Asador',       NULL,                  'gastronomia',  'sin_contactar', '538 opiniones 4.4★. Sin web propia. Sugerido: Landing + reservas online'),
+  ('Los Jardines',           NULL,                  'gastronomia',  'sin_contactar', '770 opiniones 4.1★. Web existente. Sugerido: Mejora web + CMS'),
+  ('Panchería y Papitería Gourmet', NULL,           'gastronomia',  'contactado',    'Instagram: pancheriaypapiteriagourmet'),
 
-  -- Barberías (contactado)
-  ('Vision Hair Studio',      'otro', 'sin_contactar', '1.528 reviews 5.0★ en Fresha. Fuerte boca a boca. Sugerido: Landing + reservas + RRSS'),
-  ('Essenza Barbería',        'otro', 'sin_contactar', '5.0★ Fresha 2026. Sin web, alta competencia en el rubro. Sugerido: Landing + sistema de turnos'),
+  -- Dental
+  ('CM Dental Rosario',      NULL,                  'dental',       'sin_contactar', 'Clínica moderna con web. Puede mejorar con SEO y contenido. Sugerido: Mejora web + SEO + CMS'),
 
-  -- Salud / Dental (contactado)
-  ('CM Dental Rosario',       'dental', 'sin_contactar', 'Clínica moderna con web. Puede mejorar con SEO y contenido. Sugerido: Mejora web + SEO + CMS'),
+  -- Otro
+  ('Vision Hair Studio',     '+54 9 3412 78-1223',  'otro',         'contactado',    '1.528 reviews 5.0★ en Fresha. Fuerte boca a boca. Sugerido: Landing + reservas + RRSS'),
+  ('Essenza Barbería',       NULL,                  'otro',         'cerrado',       '5.0★ Fresha 2026. Sin web, alta competencia en el rubro. Sugerido: Landing + sistema de turnos'),
+  ('ESSENZA Barberia',       '+54 9 3417 18-9339',  'otro',         'contactado',    NULL),
+  ('Cielito Encantando',     '+54 9 3416 16-5692',  'otro',         'contactado',    NULL);
 
-  -- Fitness (contactado)
-  ('O2 Gimnasio',             'fitness', 'sin_contactar', 'Presente en búsquedas locales. Web funcional. Sugerido: Mejora web + RRSS'),
 
-  -- Moda (contactado)
-  ('Z Market',                'moda', 'sin_contactar', 'Solo FB/IG activo. Sin tienda online propia. Sugerido: E-commerce / tienda online')
-;
+-- ------------------------------------------------------------
+-- 7. CONTACTS (de prospects)
+-- ------------------------------------------------------------
+
+INSERT INTO contacts (prospect_id, type, value)
+SELECT id, 'instagram', 'pancheriaypapiteriagourmet'
+FROM prospects
+WHERE name = 'Panchería y Papitería Gourmet';
+
+
+-- ------------------------------------------------------------
+-- 8. SETTINGS
+-- ------------------------------------------------------------
+
+INSERT INTO settings (key, value) VALUES
+  ('opening_balance_ars',  '36409.85'),
+  ('opening_balance_date', '2026-04-01');
