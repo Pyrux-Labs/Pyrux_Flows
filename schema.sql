@@ -302,19 +302,31 @@ COMMENT ON TABLE settings IS 'Configuración general. opening_balance_ars es el 
 
 
 -- ------------------------------------------------------------
--- RLS — desactivado (app interna, sin usuarios públicos)
+-- RLS — solo usuarios autenticados de Supabase Auth tienen acceso.
+-- El sync de MP usa createAdminClient (service role) y lo bypasea.
 -- ------------------------------------------------------------
 
-ALTER TABLE sectors          DISABLE ROW LEVEL SECURITY;
-ALTER TABLE prospects        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE clients          DISABLE ROW LEVEL SECURITY;
-ALTER TABLE contacts         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE services         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE projects         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE project_payments DISABLE ROW LEVEL SECURITY;
-ALTER TABLE movements        DISABLE ROW LEVEL SECURITY;
-ALTER TABLE mp_rules         DISABLE ROW LEVEL SECURITY;
-ALTER TABLE settings         DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sectors          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE prospects        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clients          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE services         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE movements        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mp_rules         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings         ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "auth_full_access" ON sectors          FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON prospects        FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON clients          FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON contacts         FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON services         FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON projects         FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON project_payments FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON movements        FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON mp_rules         FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_full_access" ON settings         FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 
 -- ------------------------------------------------------------
