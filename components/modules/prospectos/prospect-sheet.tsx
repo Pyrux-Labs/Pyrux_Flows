@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
 import {
@@ -257,30 +258,32 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
             {isEditing && prospect && (
               <div className="space-y-2">
                 <Label>Contactos</Label>
-                <div className="space-y-1.5">
+                <div className="rounded-md border border-border divide-y divide-border">
                   {contacts.map((c) => (
-                    <div key={c.id} className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground shrink-0 w-20">
+                    <div key={c.id} className="flex items-center gap-2 px-3 py-2">
+                      <Badge variant="secondary" className="text-xs shrink-0">
                         {CONTACT_TYPE_LABELS[c.type] ?? c.type}
-                      </span>
-                      <span className="flex-1 truncate">{c.value}</span>
-                      <button
+                      </Badge>
+                      <span className="flex-1 truncate text-sm">{c.value}</span>
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
                         onClick={() => handleDeleteContact(c.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                       >
                         <X className="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
 
                   {addingContact ? (
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-2 px-3 py-2">
                       <Select
                         value={newContactType}
                         onValueChange={(v) => setNewContactType(v as ContactType)}
                       >
-                        <SelectTrigger className="w-32 h-8 text-xs">
+                        <SelectTrigger className="w-28 h-7 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -292,7 +295,7 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
                         </SelectContent>
                       </Select>
                       <Input
-                        className="h-8 text-sm flex-1"
+                        className="h-7 text-sm flex-1"
                         placeholder="Valor"
                         value={newContactValue}
                         onChange={(e) => setNewContactValue(e.target.value)}
@@ -304,18 +307,20 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
                       />
                       <Button
                         type="button"
-                        size="sm"
-                        className="h-8 px-2"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
                         onClick={handleAddContact}
                         disabled={!newContactValue.trim() || createContact.isPending}
                       >
-                        {createContact.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "OK"}
+                        {createContact.isPending
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Plus className="h-3.5 w-3.5" />}
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="h-8 px-2"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
                         onClick={() => setAddingContact(false)}
                       >
                         <X className="h-3.5 w-3.5" />
@@ -325,7 +330,7 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
                     <button
                       type="button"
                       onClick={() => setAddingContact(true)}
-                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      className="flex items-center gap-1.5 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Agregar contacto
