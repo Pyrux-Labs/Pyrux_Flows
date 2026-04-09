@@ -24,17 +24,19 @@ import {
 import { UserCheck, MessageSquare, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useUpdateClient } from "@/hooks/use-clients";
-import { SECTOR_LABELS } from "@/lib/constants/labels";
-import type { Client, Sector } from "@/lib/types/database.types";
+import { useSectors } from "@/hooks/use-sectors";
+import { useContacts } from "@/hooks/use-contacts";
+import { CONTACT_TYPE_LABELS } from "@/lib/constants/labels";
+import type { Client } from "@/lib/types/database.types";
 
-type EditableField = "name" | "email" | "phone";
+type EditableField = "name" | "phone";
 
 interface EditingCell {
   id: string;
   field: EditableField;
 }
 
-type SortColumn = "name" | "sector" | "email" | "phone" | "projects";
+type SortColumn = "name" | "sector" | "contact" | "phone" | "projects";
 type SortDirection = "asc" | "desc";
 
 interface ClientTableProps {
@@ -62,7 +64,19 @@ export function ClientTable({
   const [sortColumn, setSortColumn] = useState<SortColumn>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const updateClient = useUpdateClient();
+  const { data: sectors = [] } = useSectors();
+  const { data: allContacts = [] } = useContacts();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const contactsByClientId = useMemo(() => {
+    return allContacts.reduce<Record<string, typeof allContacts>>((acc, c) => {
+      if (c.client_id) {
+        if (!acc[c.client_id]) acc[c.client_id] = [];
+        acc[c.client_id].push(c);
+      }
+      return acc;
+    }, {});
+  }, [allContacts]);
 
   function handleSort(column: string) {
     const col = column as SortColumn;
@@ -84,12 +98,15 @@ export function ClientTable({
           break;
         case "sector":
           cmp = compareStrings(
-            a.sector ? (SECTOR_LABELS[a.sector] ?? a.sector) : null,
-            b.sector ? (SECTOR_LABELS[b.sector] ?? b.sector) : null,
+            a.sector ? (sectors.find((s) => s.id === a.sector)?.label ?? a.sector) : null,
+            b.sector ? (sectors.find((s) => s.id === b.sector)?.label ?? b.sector) : null,
           );
           break;
-        case "email":
-          cmp = compareStrings(a.email, b.email);
+        case "contact":
+          cmp = compareStrings(
+            contactsByClientId[a.id]?.[0]?.value,
+            contactsByClientId[b.id]?.[0]?.value,
+          );
           break;
         case "phone":
           cmp = compareStrings(a.phone, b.phone);
@@ -101,7 +118,7 @@ export function ClientTable({
       if (cmp !== 0) return cmp * dir;
       return compareStrings(a.name, b.name);
     });
-  }, [clients, projectCounts, sortColumn, sortDirection]);
+  }, [clients, projectCounts, sortColumn, sortDirection, sectors, contactsByClientId]);
 
   function startEdit(e: React.MouseEvent, client: Client, field: EditableField) {
     e.stopPropagation();
@@ -195,7 +212,7 @@ export function ClientTable({
           <TableRow className="hover:bg-transparent">
             <SortableHead column="name" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Nombre</SortableHead>
             <SortableHead column="sector" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Sector</SortableHead>
-            <SortableHead column="email" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Email</SortableHead>
+            <SortableHead column="contact" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Contacto</SortableHead>
             <SortableHead column="phone" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Teléfono</SortableHead>
             <SortableHead column="projects" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Proyectos</SortableHead>
             <TableHead className="w-12" />
@@ -204,6 +221,8 @@ export function ClientTable({
         <TableBody>
           {sorted.map((client) => {
             const count = projectCounts[client.id] ?? 0;
+            const contacts = contactsByClientId[client.id] ?? [];
+            const firstContact = contacts[0];
             return (
               <TableRow key={client.id} className="hover:bg-secondary/50">
 
@@ -233,7 +252,7 @@ export function ClientTable({
                     <DropdownMenuTrigger asChild>
                       <button className="text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                         {client.sector
-                          ? (SECTOR_LABELS[client.sector] ?? client.sector)
+                          ? (sectors.find((s) => s.id === client.sector)?.label ?? client.sector)
                           : <span className="text-muted-foreground/40 italic">Sin sector</span>}
                       </button>
                     </DropdownMenuTrigger>
@@ -248,26 +267,49 @@ export function ClientTable({
                         {!client.sector && <Check className="h-3.5 w-3.5 shrink-0" />}
                         <span className={!client.sector ? "" : "pl-5"}>Sin sector</span>
                       </DropdownMenuItem>
-                      {Object.entries(SECTOR_LABELS).map(([value, label]) => (
+                      {sectors.map(({ id, label }) => (
                         <DropdownMenuItem
-                          key={value}
+                          key={id}
                           onClick={() =>
-                            updateClient.mutate({ id: client.id, payload: { sector: value as Sector } })
+                            updateClient.mutate({ id: client.id, payload: { sector: id } })
                           }
-                          disabled={client.sector === value}
+                          disabled={client.sector === id}
                           className="flex items-center gap-2"
                         >
-                          {client.sector === value && <Check className="h-3.5 w-3.5 shrink-0" />}
-                          <span className={client.sector === value ? "" : "pl-5"}>{label}</span>
+                          {client.sector === id && <Check className="h-3.5 w-3.5 shrink-0" />}
+                          <span className={client.sector === id ? "" : "pl-5"}>{label}</span>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
 
-                {/* Email */}
+                {/* Contacto */}
                 <TableCell className="text-sm text-muted-foreground">
-                  {renderCell(client, "email", "Sin email")}
+                  {firstContact ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate max-w-[140px]">{firstContact.value}</span>
+                      {contacts.length > 1 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs text-muted-foreground bg-secondary rounded px-1 cursor-default shrink-0">
+                              +{contacts.length - 1}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent align="start" className="space-y-1">
+                            {contacts.map((c) => (
+                              <p key={c.id} className="text-xs">
+                                <span className="text-muted-foreground">{CONTACT_TYPE_LABELS[c.type]}: </span>
+                                {c.value}
+                              </p>
+                            ))}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground/40 italic">Sin contacto</span>
+                  )}
                 </TableCell>
 
                 {/* Teléfono */}

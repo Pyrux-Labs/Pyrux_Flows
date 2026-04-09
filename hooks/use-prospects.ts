@@ -41,6 +41,10 @@ export function useCreateProspect() {
         ...payload,
         id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        phone: payload.phone ?? null,
+        sector: payload.sector ?? null,
+        notes: payload.notes ?? null,
       } as Prospect),
     ),
   });

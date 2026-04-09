@@ -4,7 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Pencil, GripVertical } from "lucide-react";
-import { SECTOR_LABELS } from "@/lib/constants/labels";
+import { useSectors } from "@/hooks/use-sectors";
 import type { Prospect } from "@/lib/types/database.types";
 
 interface ProspectCardProps {
@@ -22,11 +22,17 @@ export function ProspectCard({ prospect, onEdit }: ProspectCardProps) {
     isDragging,
   } = useSortable({ id: prospect.id });
 
+  const { data: sectors = [] } = useSectors();
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const sectorLabel = prospect.sector
+    ? (sectors.find((s) => s.id === prospect.sector)?.label ?? prospect.sector)
+    : null;
 
   return (
     <div
@@ -47,10 +53,8 @@ export function ProspectCard({ prospect, onEdit }: ProspectCardProps) {
           <p className="text-sm font-medium text-foreground leading-snug truncate">
             {prospect.name}
           </p>
-          {prospect.sector && (
-            <p className="text-xs text-muted-foreground truncate">
-              {SECTOR_LABELS[prospect.sector] ?? prospect.sector}
-            </p>
+          {sectorLabel && (
+            <p className="text-xs text-muted-foreground truncate">{sectorLabel}</p>
           )}
         </div>
         <Button

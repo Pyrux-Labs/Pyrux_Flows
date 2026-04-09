@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,7 +32,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useDeleteWithUndo } from "@/hooks/use-delete-with-undo";
 import {
@@ -40,13 +40,14 @@ import {
   useUpdateProspect,
   useDeleteProspect,
 } from "@/hooks/use-prospects";
-import { SECTOR_LABELS, SECTOR_VALUES, PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
-import type { Prospect } from "@/lib/types/database.types";
+import { useSectors } from "@/hooks/use-sectors";
+import { useContacts, useCreateContact, useDeleteContact } from "@/hooks/use-contacts";
+import { PROSPECT_STATUS_LABELS, CONTACT_TYPE_VALUES, CONTACT_TYPE_LABELS } from "@/lib/constants/labels";
+import type { Prospect, ContactType } from "@/lib/types/database.types";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
-  sector: z.enum(SECTOR_VALUES).optional().nullable(),
-  email: z.string().email("Email inválido").optional().or(z.literal("")).nullable(),
+  sector: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   status: z.enum(["sin_contactar", "contactado", "en_negociacion", "cerrado", "perdido"]),
   notes: z.string().optional().nullable(),
@@ -65,10 +66,20 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
   const createProspect = useCreateProspect();
   const updateProspect = useUpdateProspect();
   const deleteProspect = useDeleteProspect();
+  const { data: sectors = [] } = useSectors();
+  const { data: allContacts = [] } = useContacts();
+  const createContact = useCreateContact();
+  const deleteContact = useDeleteContact();
   const { handleDelete } = useDeleteWithUndo({
     mutateAsync: deleteProspect.mutateAsync,
     queryKey: ["prospects"],
   });
+
+  const [addingContact, setAddingContact] = useState(false);
+  const [newContactType, setNewContactType] = useState<ContactType>("email");
+  const [newContactValue, setNewContactValue] = useState("");
+
+  const contacts = allContacts.filter((c) => c.prospect_id === prospect?.id);
 
   const {
     register,
@@ -82,7 +93,6 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
     defaultValues: {
       name: "",
       sector: null,
-      email: "",
       phone: "",
       status: "sin_contactar",
       notes: "",
@@ -91,12 +101,14 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
 
   useEffect(() => {
     if (open) {
+      setAddingContact(false);
+      setNewContactType("email");
+      setNewContactValue("");
       reset(
         prospect
           ? {
               name: prospect.name,
               sector: prospect.sector ?? null,
-              email: prospect.email ?? "",
               phone: prospect.phone ?? "",
               status: prospect.status as FormValues["status"],
               notes: prospect.notes ?? "",
@@ -104,7 +116,6 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
           : {
               name: "",
               sector: null,
-              email: "",
               phone: "",
               status: "sin_contactar",
               notes: "",
@@ -121,7 +132,6 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
     const payload = {
       name: values.name,
       sector: values.sector ?? null,
-      email: values.email || null,
       phone: values.phone || null,
       status: values.status,
       notes: values.notes || null,
@@ -138,6 +148,30 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar el prospecto");
+    }
+  }
+
+  async function handleAddContact() {
+    if (!prospect || !newContactValue.trim()) return;
+    try {
+      await createContact.mutateAsync({
+        prospect_id: prospect.id,
+        type: newContactType,
+        value: newContactValue.trim(),
+      });
+      setNewContactType("email");
+      setNewContactValue("");
+      setAddingContact(false);
+    } catch {
+      toast.error("No se pudo agregar el contacto");
+    }
+  }
+
+  async function handleDeleteContact(id: string) {
+    try {
+      await deleteContact.mutateAsync(id);
+    } catch {
+      toast.error("No se pudo eliminar el contacto");
     }
   }
 
@@ -169,7 +203,7 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
               <Select
                 value={watch("sector") ?? "_none"}
                 onValueChange={(v) =>
-                  setValue("sector", v === "_none" ? null : (v as FormValues["sector"]), { shouldDirty: true })
+                  setValue("sector", v === "_none" ? null : v, { shouldDirty: true })
                 }
               >
                 <SelectTrigger>
@@ -177,26 +211,11 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Sin sector</SelectItem>
-                  {Object.entries(SECTOR_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
+                  {sectors.map(({ id, label }) => (
+                    <SelectItem key={id} value={id}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register("email")}
-                placeholder="contacto@empresa.com"
-              />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -233,6 +252,88 @@ export function ProspectSheet({ open, onOpenChange, prospect }: ProspectSheetPro
                 className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
               />
             </div>
+
+            {/* Contactos — solo al editar */}
+            {isEditing && prospect && (
+              <div className="space-y-2">
+                <Label>Contactos</Label>
+                <div className="space-y-1.5">
+                  {contacts.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground shrink-0 w-20">
+                        {CONTACT_TYPE_LABELS[c.type] ?? c.type}
+                      </span>
+                      <span className="flex-1 truncate">{c.value}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteContact(c.id)}
+                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {addingContact ? (
+                    <div className="flex items-center gap-2 pt-1">
+                      <Select
+                        value={newContactType}
+                        onValueChange={(v) => setNewContactType(v as ContactType)}
+                      >
+                        <SelectTrigger className="w-32 h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTACT_TYPE_VALUES.map((type) => (
+                            <SelectItem key={type} value={type} className="text-xs">
+                              {CONTACT_TYPE_LABELS[type]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        className="h-8 text-sm flex-1"
+                        placeholder="Valor"
+                        value={newContactValue}
+                        onChange={(e) => setNewContactValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.preventDefault(); handleAddContact(); }
+                          if (e.key === "Escape") setAddingContact(false);
+                        }}
+                        autoFocus
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={handleAddContact}
+                        disabled={!newContactValue.trim() || createContact.isPending}
+                      >
+                        {createContact.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "OK"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={() => setAddingContact(false)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAddingContact(true)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Agregar contacto
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <SheetFooter className="pt-4 border-t border-border flex gap-2">

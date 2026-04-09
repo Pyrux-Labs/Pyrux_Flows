@@ -1,5 +1,26 @@
 // Centralized label maps for all enum values displayed in the UI.
 // Keys match database enum values; values are the Spanish display strings.
+// Note: sector labels are NOT here — they come from the sectors table in DB.
+
+export const CONTACT_TYPE_VALUES = [
+  "email",
+  "instagram",
+  "facebook",
+  "whatsapp",
+  "telefono",
+  "linkedin",
+  "otro",
+] as const;
+
+export const CONTACT_TYPE_LABELS: Record<string, string> = {
+  email: "Email",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  whatsapp: "WhatsApp",
+  telefono: "Teléfono",
+  linkedin: "LinkedIn",
+  otro: "Otro",
+};
 
 export const PROSPECT_STATUS_LABELS: Record<string, string> = {
   sin_contactar: "Sin contactar",
@@ -33,48 +54,6 @@ export const PROSPECT_STATUS_CONFIG: Record<
     label: "Perdido",
     className: "bg-muted text-muted-foreground border-border",
   },
-};
-
-export const SECTOR_VALUES = [
-  "contabilidad",
-  "construccion",
-  "consultoria",
-  "dental",
-  "educacion",
-  "estetica",
-  "fitness",
-  "gastronomia",
-  "inmobiliaria",
-  "legal",
-  "logistica",
-  "medico",
-  "moda",
-  "ong",
-  "retail",
-  "tecnologia",
-  "turismo",
-  "otro",
-] as const;
-
-export const SECTOR_LABELS: Record<string, string> = {
-  contabilidad: "Contabilidad",
-  construccion: "Construcción",
-  consultoria: "Consultoría",
-  dental: "Dental",
-  educacion: "Educación",
-  estetica: "Estética",
-  fitness: "Fitness",
-  gastronomia: "Gastronomía",
-  inmobiliaria: "Inmobiliaria",
-  legal: "Legal",
-  logistica: "Logística",
-  medico: "Médico",
-  moda: "Moda",
-  ong: "ONG",
-  retail: "Retail",
-  tecnologia: "Tecnología",
-  turismo: "Turismo",
-  otro: "Otro",
 };
 
 

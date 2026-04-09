@@ -17,27 +17,6 @@ export type ProspectStatus =
   | "cerrado"
   | "perdido";
 
-export type Sector =
-  | "contabilidad"
-  | "construccion"
-  | "consultoria"
-  | "dental"
-  | "educacion"
-  | "estetica"
-  | "fitness"
-  | "gastronomia"
-  | "inmobiliaria"
-  | "legal"
-  | "logistica"
-  | "medico"
-  | "moda"
-  | "ong"
-  | "retail"
-  | "tecnologia"
-  | "turismo"
-  | "otro";
-
-
 export type ProjectStatus =
   | "desarrollo"
   | "pausado"
@@ -59,18 +38,31 @@ export type PaymentStatus = "pendiente" | "pagado";
 
 export type MovementType = "credit" | "debit";
 
+export type ContactType =
+  | "email"
+  | "instagram"
+  | "facebook"
+  | "whatsapp"
+  | "telefono"
+  | "linkedin"
+  | "otro";
+
 // -------------------------------------------------------------------
 // Tables
 // -------------------------------------------------------------------
+
+export interface Sector {
+  id: string;
+  label: string;
+}
 
 export interface Prospect {
   id: string;
   created_at: string;
   updated_at: string;
   name: string;
-  email: string | null;
   phone: string | null;
-  sector: Sector | null;
+  sector: string | null;
   status: ProspectStatus;
   notes: string | null;
 }
@@ -81,11 +73,19 @@ export interface Client {
   updated_at: string;
   prospect_id: string | null;
   name: string;
-  email: string | null;
   phone: string | null;
-  sector: Sector | null;
+  sector: string | null;
   started_at: string;
   notes: string | null;
+}
+
+export interface Contact {
+  id: string;
+  created_at: string;
+  prospect_id: string | null;
+  client_id: string | null;
+  type: ContactType;
+  value: string;
 }
 
 export interface Service {

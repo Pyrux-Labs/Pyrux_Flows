@@ -46,7 +46,6 @@ export function useCreateClient() {
           prospect_id: null,
           started_at: payload.started_at ?? new Date().toISOString().split("T")[0],
           sector: payload.sector ?? null,
-          email: payload.email ?? null,
           phone: payload.phone ?? null,
           notes: payload.notes ?? null,
         }) as Client,

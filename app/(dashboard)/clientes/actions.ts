@@ -3,12 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { clientPayloadSchema } from "@/lib/validations/client";
-import type { Sector } from "@/lib/types/database.types";
 
 export interface ClientPayload {
   name: string;
-  sector?: Sector | null;
-  email?: string | null;
+  sector?: string | null;
   phone?: string | null;
   started_at?: string | null;
   notes?: string | null;
