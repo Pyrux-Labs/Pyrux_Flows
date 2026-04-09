@@ -5,19 +5,11 @@ import { TrendingUp, Receipt, Users, FolderKanban, DollarSign, Wallet } from "lu
 import Link from "next/link";
 import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import { TrendsChart } from "@/components/modules/dashboard/trends-chart";
-import { getMpAccessToken } from "@/lib/mp/token";
 
 interface DolarBlue {
   compra: number;
   venta: number;
   fechaActualizacion: string;
-}
-
-interface MpBalance {
-  available_balance: number;
-  unavailable_balance: number;
-  total_amount: number;
-  currency_id: string;
 }
 
 async function getDolarBlue(): Promise<DolarBlue | null> {
@@ -32,19 +24,6 @@ async function getDolarBlue(): Promise<DolarBlue | null> {
   }
 }
 
-async function getMpBalance(userId: number): Promise<MpBalance | null> {
-  try {
-    const token = await getMpAccessToken();
-    const res = await fetch(
-      `https://api.mercadopago.com/users/${userId}/mercadopago_account/balance`,
-      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
-    );
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
 
 async function getDashboardData() {
   const supabase = await createClient();
@@ -65,12 +44,8 @@ async function getDashboardData() {
   const trendFrom = trendMonths[0].from;
   const trendTo = trendMonths[5].to;
 
-  // Resolve MP user ID from stored token (needed for balance endpoint)
-  const mpUserId = 177375687; // extracted from APP_USR token; stable unless token is revoked
-
   const [
     dolarBlue,
-    mpBalance,
     creditsRes,
     debitsRes,
     prospectsThisWeekRes,
@@ -81,7 +56,6 @@ async function getDashboardData() {
     trendDebitsRes,
   ] = await Promise.all([
     getDolarBlue(),
-    getMpBalance(mpUserId),
     supabase
       .from("movements")
       .select("amount, currency")
@@ -129,6 +103,17 @@ async function getDashboardData() {
       .lte("date", trendTo),
   ]);
 
+  // Balance: sum of all synced ARS movements (credits − debits)
+  const { data: allMovements } = await supabase
+    .from("movements")
+    .select("type, amount, currency")
+    .eq("currency", "ARS");
+
+  const mpBalanceARS = (allMovements ?? []).reduce(
+    (sum, m) => sum + (m.type === "credit" ? m.amount : -m.amount),
+    0,
+  );
+
   const credits = creditsRes.data ?? [];
   const debits = debitsRes.data ?? [];
   const arsToUsd = (ars: number) => (dolarBlue ? ars / dolarBlue.compra : 0);
@@ -160,7 +145,7 @@ async function getDashboardData() {
 
   return {
     dolarBlue,
-    mpBalance,
+    mpBalanceARS,
     totalIncomeUSD,
     totalExpensesUSD,
     netoUSD,
@@ -227,30 +212,18 @@ export default async function DashboardPage() {
       </div>
 
       {/* MP Balance */}
-      {data.mpBalance && (
-        <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Wallet className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Saldo Mercado Pago</span>
-          </div>
-          <div className="flex gap-6">
-            <div>
-              <p className="text-xs text-muted-foreground">Disponible</p>
-              <p className="text-xl font-bold text-foreground">
-                {formatCurrency(data.mpBalance.available_balance, "ARS")}
-              </p>
-            </div>
-            {data.mpBalance.unavailable_balance > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground">En proceso</p>
-                <p className="text-xl font-bold text-muted-foreground">
-                  {formatCurrency(data.mpBalance.unavailable_balance, "ARS")}
-                </p>
-              </div>
-            )}
-          </div>
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Wallet className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">Saldo Mercado Pago</span>
+          <span className="text-xs text-muted-foreground ml-auto">estimado desde movimientos</span>
         </div>
-      )}
+        <div>
+          <p className={`text-xl font-bold ${data.mpBalanceARS >= 0 ? "text-foreground" : "text-destructive"}`}>
+            {formatCurrency(Math.abs(data.mpBalanceARS), "ARS")}
+          </p>
+        </div>
+      </div>
 
       {/* Dólar blue */}
       <div className="bg-card border border-border rounded-lg p-4">
