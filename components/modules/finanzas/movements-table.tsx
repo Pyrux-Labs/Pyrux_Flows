@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -12,13 +13,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Pencil, TrendingUp, RefreshCw, AlertCircle, ArrowUpDown } from "lucide-react";
+import { SortableHead } from "@/components/shared/sortable-head";
+import { Pencil, TrendingUp, RefreshCw, AlertCircle } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   MOVEMENT_CREDIT_CATEGORY_LABELS,
   MOVEMENT_DEBIT_CATEGORY_LABELS,
 } from "@/lib/constants/labels";
 import type { Movement, MovementType, ProjectWithClient } from "@/lib/types/database.types";
+
+type SortColumn = "type" | "description" | "project" | "amount" | "date" | "category";
+type SortDirection = "asc" | "desc";
 
 interface MovementsTableProps {
   movements: Movement[];
@@ -33,6 +38,13 @@ const CATEGORY_LABELS: Record<MovementType, Record<string, string>> = {
   debit: MOVEMENT_DEBIT_CATEGORY_LABELS,
 };
 
+function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b, "es");
+}
+
 export function MovementsTable({
   movements,
   projects,
@@ -40,7 +52,60 @@ export function MovementsTable({
   filter,
   onEdit,
 }: MovementsTableProps) {
+  const [sortColumn, setSortColumn] = useState<SortColumn>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const projectMap = Object.fromEntries(projects.map((p) => [p.id, p]));
+
+  function handleSort(column: string) {
+    const col = column as SortColumn;
+    if (col === sortColumn) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(col);
+      setSortDirection(col === "date" ? "desc" : "asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return [...movements].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case "type":
+          cmp = compareStrings(a.type, b.type);
+          break;
+        case "description": {
+          const descA = a.description ?? a.counterpart_name ?? "";
+          const descB = b.description ?? b.counterpart_name ?? "";
+          cmp = compareStrings(descA, descB);
+          break;
+        }
+        case "project": {
+          const projA = a.project_id ? (projectMap[a.project_id]?.name ?? null) : null;
+          const projB = b.project_id ? (projectMap[b.project_id]?.name ?? null) : null;
+          cmp = compareStrings(projA, projB);
+          break;
+        }
+        case "amount":
+          cmp = a.amount - b.amount;
+          break;
+        case "date":
+          cmp = a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+          break;
+        case "category": {
+          const catLabels = CATEGORY_LABELS[a.type];
+          const catA = a.category ? (catLabels[a.category] ?? a.category) : null;
+          const catLabelsB = CATEGORY_LABELS[b.type];
+          const catB = b.category ? (catLabelsB[b.category] ?? b.category) : null;
+          cmp = compareStrings(catA, catB);
+          break;
+        }
+      }
+      if (cmp !== 0) return cmp * dir;
+      // secondary: most recent first
+      return b.date < a.date ? -1 : b.date > a.date ? 1 : 0;
+    });
+  }, [movements, projectMap, sortColumn, sortDirection]);
 
   if (isLoading) {
     return (
@@ -74,17 +139,19 @@ export function MovementsTable({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            {filter === "all" && <TableHead className="w-24">Tipo</TableHead>}
-            <TableHead>Descripción</TableHead>
-            <TableHead>Proyecto</TableHead>
-            <TableHead className="text-right">Monto</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Categoría</TableHead>
+            {filter === "all" && (
+              <SortableHead column="type" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="w-24">Tipo</SortableHead>
+            )}
+            <SortableHead column="description" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Descripción</SortableHead>
+            <SortableHead column="project" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Proyecto</SortableHead>
+            <SortableHead column="amount" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-right">Monto</SortableHead>
+            <SortableHead column="date" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Fecha</SortableHead>
+            <SortableHead column="category" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Categoría</SortableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {movements.map((entry) => {
+          {sorted.map((entry) => {
             const project = entry.project_id ? projectMap[entry.project_id] : null;
             const isUnclassified = !entry.category && !entry.project_id;
             const categoryLabels = CATEGORY_LABELS[entry.type];

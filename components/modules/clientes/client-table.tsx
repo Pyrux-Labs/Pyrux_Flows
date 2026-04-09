@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SortableHead } from "@/components/shared/sortable-head";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -33,11 +34,21 @@ interface EditingCell {
   field: EditableField;
 }
 
+type SortColumn = "name" | "sector" | "email" | "phone" | "projects";
+type SortDirection = "asc" | "desc";
+
 interface ClientTableProps {
   clients: Client[];
   projectCounts: Record<string, number>;
   isLoading: boolean;
   onEdit: (client: Client) => void;
+}
+
+function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b, "es");
 }
 
 export function ClientTable({
@@ -48,8 +59,49 @@ export function ClientTable({
 }: ClientTableProps) {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const updateClient = useUpdateClient();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleSort(column: string) {
+    const col = column as SortColumn;
+    if (col === sortColumn) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(col);
+      setSortDirection("asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return [...clients].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case "name":
+          cmp = compareStrings(a.name, b.name);
+          break;
+        case "sector":
+          cmp = compareStrings(
+            a.sector ? (SECTOR_LABELS[a.sector] ?? a.sector) : null,
+            b.sector ? (SECTOR_LABELS[b.sector] ?? b.sector) : null,
+          );
+          break;
+        case "email":
+          cmp = compareStrings(a.email, b.email);
+          break;
+        case "phone":
+          cmp = compareStrings(a.phone, b.phone);
+          break;
+        case "projects":
+          cmp = (projectCounts[a.id] ?? 0) - (projectCounts[b.id] ?? 0);
+          break;
+      }
+      if (cmp !== 0) return cmp * dir;
+      return compareStrings(a.name, b.name);
+    });
+  }, [clients, projectCounts, sortColumn, sortDirection]);
 
   function startEdit(e: React.MouseEvent, client: Client, field: EditableField) {
     e.stopPropagation();
@@ -141,16 +193,16 @@ export function ClientTable({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Nombre</TableHead>
-            <TableHead>Sector</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Teléfono</TableHead>
-            <TableHead>Proyectos</TableHead>
+            <SortableHead column="name" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Nombre</SortableHead>
+            <SortableHead column="sector" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Sector</SortableHead>
+            <SortableHead column="email" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Email</SortableHead>
+            <SortableHead column="phone" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Teléfono</SortableHead>
+            <SortableHead column="projects" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Proyectos</SortableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {clients.map((client) => {
+          {sorted.map((client) => {
             const count = projectCounts[client.id] ?? 0;
             return (
               <TableRow key={client.id} className="hover:bg-secondary/50">

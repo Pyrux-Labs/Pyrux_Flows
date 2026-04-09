@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SortableHead } from "@/components/shared/sortable-head";
 import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
 import { Pencil, FolderKanban } from "lucide-react";
 import { toast } from "sonner";
@@ -20,17 +21,86 @@ import { PROJECT_STATUS_CONFIG } from "@/lib/constants/labels";
 import { useUpdateProject } from "@/hooks/use-projects";
 import type { ProjectWithClient, ProjectStatus } from "@/lib/types/database.types";
 
+type SortColumn = "name" | "client" | "status" | "start_date" | "end_date" | "price";
+type SortDirection = "asc" | "desc";
+
+const PROJECT_STATUS_ORDER: Record<string, number> = {
+  desarrollo: 0,
+  pausado: 1,
+  completado: 2,
+  cancelado: 3,
+  mantenimiento: 4,
+};
+
 interface ProjectTableProps {
   projects: ProjectWithClient[];
   isLoading: boolean;
   onEdit: (project: ProjectWithClient) => void;
 }
 
+function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b, "es");
+}
+
+function compareDates(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("status");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const updateProject = useUpdateProject();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleSort(column: string) {
+    const col = column as SortColumn;
+    if (col === sortColumn) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(col);
+      setSortDirection("asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return [...projects].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case "name":
+          cmp = compareStrings(a.name, b.name);
+          break;
+        case "client":
+          cmp = compareStrings(a.client?.name, b.client?.name);
+          break;
+        case "status": {
+          const orderA = PROJECT_STATUS_ORDER[a.status] ?? 99;
+          const orderB = PROJECT_STATUS_ORDER[b.status] ?? 99;
+          cmp = orderA - orderB;
+          break;
+        }
+        case "start_date":
+          cmp = compareDates(a.start_date, b.start_date);
+          break;
+        case "end_date":
+          cmp = compareDates(a.end_date, b.end_date);
+          break;
+        case "price":
+          cmp = (a.price ?? 0) - (b.price ?? 0);
+          break;
+      }
+      if (cmp !== 0) return cmp * dir;
+      return compareStrings(a.name, b.name);
+    });
+  }, [projects, sortColumn, sortDirection]);
 
   function startEdit(e: React.MouseEvent, project: ProjectWithClient) {
     e.stopPropagation();
@@ -82,17 +152,17 @@ export function ProjectTable({ projects, isLoading, onEdit }: ProjectTableProps)
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Nombre</TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Inicio</TableHead>
-            <TableHead>Fin</TableHead>
-            <TableHead className="text-right">Precio</TableHead>
+            <SortableHead column="name" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Nombre</SortableHead>
+            <SortableHead column="client" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Cliente</SortableHead>
+            <SortableHead column="status" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Estado</SortableHead>
+            <SortableHead column="start_date" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Inicio</SortableHead>
+            <SortableHead column="end_date" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Fin</SortableHead>
+            <SortableHead column="price" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} className="text-right">Precio</SortableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {projects.map((project) => (
+          {sorted.map((project) => (
             <TableRow key={project.id} className="hover:bg-secondary/50">
 
               {/* Nombre */}

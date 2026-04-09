@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { SortableHead } from "@/components/shared/sortable-head";
 import { StatusBadgeDropdown } from "@/components/shared/status-badge-dropdown";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -36,17 +37,79 @@ interface EditingCell {
   field: EditableField;
 }
 
+type SortColumn = "name" | "sector" | "status" | "email" | "phone";
+type SortDirection = "asc" | "desc";
+
+const PROSPECT_STATUS_ORDER: Record<string, number> = {
+  sin_contactar: 0,
+  contactado: 1,
+  en_negociacion: 2,
+  cerrado: 3,
+  perdido: 4,
+};
+
 interface ProspectTableProps {
   prospects: Prospect[];
   isLoading: boolean;
   onEdit: (prospect: Prospect) => void;
 }
 
+function compareStrings(a: string | null | undefined, b: string | null | undefined): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return a.localeCompare(b, "es");
+}
+
 export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTableProps) {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [sortColumn, setSortColumn] = useState<SortColumn>("status");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const updateProspect = useUpdateProspect();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleSort(column: string) {
+    const col = column as SortColumn;
+    if (col === sortColumn) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(col);
+      setSortDirection("asc");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return [...prospects].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case "name":
+          cmp = compareStrings(a.name, b.name);
+          break;
+        case "sector":
+          cmp = compareStrings(
+            a.sector ? (SECTOR_LABELS[a.sector] ?? a.sector) : null,
+            b.sector ? (SECTOR_LABELS[b.sector] ?? b.sector) : null,
+          );
+          break;
+        case "status": {
+          const orderA = PROSPECT_STATUS_ORDER[a.status] ?? 99;
+          const orderB = PROSPECT_STATUS_ORDER[b.status] ?? 99;
+          cmp = orderA - orderB;
+          break;
+        }
+        case "email":
+          cmp = compareStrings(a.email, b.email);
+          break;
+        case "phone":
+          cmp = compareStrings(a.phone, b.phone);
+          break;
+      }
+      if (cmp !== 0) return cmp * dir;
+      return compareStrings(a.name, b.name);
+    });
+  }, [prospects, sortColumn, sortDirection]);
 
   function startEdit(e: React.MouseEvent, prospect: Prospect, field: EditableField) {
     e.stopPropagation();
@@ -138,16 +201,16 @@ export function ProspectTable({ prospects, isLoading, onEdit }: ProspectTablePro
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Nombre</TableHead>
-            <TableHead>Sector</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Teléfono</TableHead>
+            <SortableHead column="name" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Nombre</SortableHead>
+            <SortableHead column="sector" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Sector</SortableHead>
+            <SortableHead column="status" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Estado</SortableHead>
+            <SortableHead column="email" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Email</SortableHead>
+            <SortableHead column="phone" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort}>Teléfono</SortableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {prospects.map((prospect) => (
+          {sorted.map((prospect) => (
             <TableRow key={prospect.id} className="hover:bg-secondary/50">
 
               {/* Nombre */}
