@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfMonth, endOfMonth, startOfWeek, subMonths, format } from "date-fns";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { TrendingUp, Receipt, Users, FolderKanban, DollarSign, Wallet } from "lucide-react";
+import { TrendingUp, Receipt, Users, FolderKanban, DollarSign, Wallet, CalendarCheck } from "lucide-react";
 import Link from "next/link";
 import { PROSPECT_STATUS_LABELS } from "@/lib/constants/labels";
 import { TrendsChart } from "@/components/modules/dashboard/trends-chart";
@@ -54,6 +54,8 @@ async function getDashboardData() {
     recentCreditsRes,
     trendCreditsRes,
     trendDebitsRes,
+    maintenanceProjectsRes,
+    maintenanceReceivedRes,
   ] = await Promise.all([
     getDolarBlue(),
     supabase
@@ -101,6 +103,19 @@ async function getDashboardData() {
       .eq("type", "debit")
       .gte("date", trendFrom)
       .lte("date", trendTo),
+    // Maintenance control: expected
+    supabase
+      .from("projects")
+      .select("maintenance_amount, maintenance_currency")
+      .eq("status", "mantenimiento"),
+    // Maintenance control: received this month
+    supabase
+      .from("movements")
+      .select("amount, currency")
+      .eq("type", "credit")
+      .eq("category", "mantenimiento")
+      .gte("date", monthFrom)
+      .lte("date", monthTo),
   ]);
 
   // Balance: read from settings (saved during sync from bank_report closing balance)
@@ -141,6 +156,27 @@ async function getDashboardData() {
     return { month: label.charAt(0).toUpperCase() + label.slice(1), ingresos, gastos };
   });
 
+  // Maintenance control
+  const maintenanceProjects = maintenanceProjectsRes.data ?? [];
+  const maintenanceReceived = maintenanceReceivedRes.data ?? [];
+
+  const maintenanceExpected = {
+    ARS: maintenanceProjects
+      .filter((p) => p.maintenance_currency === "ARS")
+      .reduce((s, p) => s + (p.maintenance_amount ?? 0), 0),
+    USD: maintenanceProjects
+      .filter((p) => p.maintenance_currency === "USD")
+      .reduce((s, p) => s + (p.maintenance_amount ?? 0), 0),
+  };
+  const maintenanceActual = {
+    ARS: maintenanceReceived
+      .filter((m) => m.currency === "ARS")
+      .reduce((s, m) => s + m.amount, 0),
+    USD: maintenanceReceived
+      .filter((m) => m.currency === "USD")
+      .reduce((s, m) => s + m.amount, 0),
+  };
+
   return {
     dolarBlue,
     mpBalanceARS,
@@ -152,6 +188,8 @@ async function getDashboardData() {
     activeProjects: activeProjectsRes.count ?? 0,
     recentProspects: recentProspectsRes.data ?? [],
     recentIncome: recentCreditsRes.data ?? [],
+    maintenanceExpected,
+    maintenanceActual,
   };
 }
 
@@ -267,6 +305,45 @@ export default async function DashboardPage() {
           <p className="text-sm text-muted-foreground">No disponible</p>
         )}
       </div>
+
+      {/* Maintenance control */}
+      {(data.maintenanceExpected.ARS > 0 || data.maintenanceExpected.USD > 0) && (
+        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <CalendarCheck className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">Control de mantenimientos</span>
+            <span className="text-xs text-muted-foreground ml-auto">este mes</span>
+          </div>
+          <div className="space-y-2">
+            {(["ARS", "USD"] as const).map((currency) => {
+              const expected = data.maintenanceExpected[currency];
+              const actual = data.maintenanceActual[currency];
+              if (expected === 0) return null;
+              const diff = actual - expected;
+              const complete = diff >= 0;
+              return (
+                <div key={currency} className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground w-10">{currency}</span>
+                  <div className="flex-1 flex items-center gap-2">
+                    <span className="text-foreground font-mono">
+                      {formatCurrency(actual, currency)}
+                    </span>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="text-muted-foreground font-mono">
+                      {formatCurrency(expected, currency)}
+                    </span>
+                  </div>
+                  <span className={`text-xs font-medium ${complete ? "text-green-400" : "text-yellow-400"}`}>
+                    {complete
+                      ? "completo"
+                      : `falta ${formatCurrency(Math.abs(diff), currency)}`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Monthly trends chart */}
       <div className="space-y-3">
