@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { startOfMonth, endOfMonth, startOfWeek, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, startOfWeek, subMonths, addMonths, format } from "date-fns";
+import { es } from "date-fns/locale";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { TrendingUp, Receipt, Users, FolderKanban, DollarSign, Wallet, CalendarCheck } from "lucide-react";
 import Link from "next/link";
@@ -187,6 +188,7 @@ async function getDashboardData() {
     recentIncome: recentCreditsRes.data ?? [],
     maintenanceExpectedUSD,
     maintenanceActualUSD,
+    nextMonthName: format(addMonths(now, 1), "MMMM", { locale: es }),
   };
 }
 
@@ -202,147 +204,145 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Summary widgets */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <Widget
+      {/* Compact stats bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <CompactWidget
           icon={TrendingUp}
-          label="Ingresos del mes"
+          label="Ingresos"
           primary={formatCurrency(data.totalIncomeUSD, "USD")}
+          subtext="este mes"
           href="/finanzas"
         />
-        <Widget
+        <CompactWidget
           icon={Receipt}
-          label="Gastos del mes"
+          label="Gastos"
           primary={formatCurrency(data.totalExpensesUSD, "USD")}
+          subtext="este mes"
           href="/gastos"
         />
-        <Widget
+        <CompactWidget
           icon={data.netoUSD >= 0 ? TrendingUp : Receipt}
-          label="Neto del mes"
+          label="Neto"
           primary={formatCurrency(Math.abs(data.netoUSD), "USD")}
           subtext={data.netoUSD >= 0 ? "ganancia" : "pérdida"}
           positive={data.netoUSD >= 0}
           href="/finanzas"
         />
-      </div>
-
-      {/* Secondary widgets */}
-      <div className="grid grid-cols-2 gap-4">
-        <Widget
+        <CompactWidget
           icon={Users}
-          label="Prospectos esta semana"
+          label="Prospectos"
           primary={String(data.prospectsThisWeek)}
-          subtext="nuevos contactos"
+          subtext="esta semana"
           href="/prospectos"
         />
-        <Widget
+        <CompactWidget
           icon={FolderKanban}
           label="En desarrollo"
           primary={String(data.activeProjects)}
-          subtext="en curso"
+          subtext="proyectos"
           href="/proyectos"
         />
       </div>
 
-      {/* MP Balance */}
-      {data.mpBalanceARS !== null && (
-        <div className="bg-card border border-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Wallet className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Saldo Mercado Pago</span>
+      {/* Middle row: Saldo MP | Control este mes | Próximo mes | Dólar blue */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Saldo MP */}
+        <div className="bg-card border border-border rounded-lg p-3 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <Wallet className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs text-muted-foreground">Saldo MP</span>
           </div>
-          <div className="flex items-end gap-4">
-            <p className={`text-xl font-bold ${data.mpBalanceARS >= 0 ? "text-foreground" : "text-destructive"}`}>
-              {formatCurrency(data.mpBalanceARS, "ARS")}
-            </p>
-            {data.dolarBlue && (
-              <p className="text-sm text-muted-foreground mb-0.5">
-                ≈ {formatCurrency(data.mpBalanceARS / data.dolarBlue.venta, "USD")}
+          {data.mpBalanceARS !== null ? (
+            <>
+              <p className={`text-lg font-bold ${data.mpBalanceARS >= 0 ? "text-foreground" : "text-destructive"}`}>
+                {formatCurrency(data.mpBalanceARS, "ARS")}
               </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Dólar blue */}
-      <div className="bg-card border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <DollarSign className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Dólar blue</span>
-          {data.dolarBlue && (
-            <span className="text-xs text-muted-foreground ml-auto">
-              Actualizado{" "}
-              {new Date(data.dolarBlue.fechaActualizacion).toLocaleString("es-AR", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: "America/Argentina/Buenos_Aires",
-              })}
-            </span>
+              {data.dolarBlue && (
+                <p className="text-xs text-muted-foreground">
+                  ≈ {formatCurrency(data.mpBalanceARS / data.dolarBlue.venta, "USD")}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">—</p>
           )}
         </div>
-        {data.dolarBlue ? (
-          <div className="flex gap-6">
-            <div>
-              <p className="text-xs text-muted-foreground">Compra</p>
-              <p className="text-xl font-bold text-foreground">
-                {formatCurrency(data.dolarBlue.compra, "ARS")}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Venta</p>
-              <p className="text-xl font-bold text-foreground">
-                {formatCurrency(data.dolarBlue.venta, "ARS")}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No disponible</p>
-        )}
-      </div>
 
-      {/* Maintenance control */}
-      {data.maintenanceExpectedUSD > 0 && (
-        <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <CalendarCheck className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">Control de mantenimientos</span>
+        {/* Control mantenimientos este mes */}
+        <div className="bg-card border border-border rounded-lg p-3 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <CalendarCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs text-muted-foreground">Mantenimiento</span>
             <span className="text-xs text-muted-foreground ml-auto">este mes</span>
           </div>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-0.5">Recibido</p>
-              <p className="text-xl font-bold text-foreground">
-                {formatCurrency(data.maintenanceActualUSD, "USD")}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground mb-0.5">Esperado</p>
-              <p className="text-xl font-bold text-muted-foreground">
-                {formatCurrency(data.maintenanceExpectedUSD, "USD")}
-              </p>
-            </div>
-          </div>
-          {(() => {
-            const diff = data.maintenanceActualUSD - data.maintenanceExpectedUSD;
-            const complete = diff >= 0;
-            return (
-              <p className={`text-xs font-medium ${complete ? "text-green-400" : "text-yellow-400"}`}>
-                {complete
-                  ? "✓ Todo cobrado este mes"
-                  : `Falta cobrar ≈ ${formatCurrency(Math.abs(diff), "USD")}`}
-              </p>
-            );
-          })()}
-          {data.dolarBlue && (
-            <p className="text-xs text-muted-foreground">
-              Conversión a tipo blue venta (${formatCurrency(data.dolarBlue.venta, "ARS")})
-            </p>
+          {data.maintenanceExpectedUSD > 0 ? (
+            <>
+              <div className="flex items-baseline gap-1.5">
+                <p className="text-lg font-bold text-foreground">
+                  {formatCurrency(data.maintenanceActualUSD, "USD")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  / {formatCurrency(data.maintenanceExpectedUSD, "USD")}
+                </p>
+              </div>
+              {(() => {
+                const diff = data.maintenanceActualUSD - data.maintenanceExpectedUSD;
+                return (
+                  <p className={`text-xs font-medium ${diff >= 0 ? "text-green-400" : "text-yellow-400"}`}>
+                    {diff >= 0 ? "✓ Completo" : `Falta ≈ ${formatCurrency(Math.abs(diff), "USD")}`}
+                  </p>
+                );
+              })()}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin mantenimientos</p>
           )}
         </div>
-      )}
+
+        {/* Próximo mes */}
+        <div className="bg-card border border-border rounded-lg p-3 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground capitalize">{data.nextMonthName}</span>
+          </div>
+          {data.maintenanceExpectedUSD > 0 ? (
+            <>
+              <p className="text-lg font-bold text-foreground">
+                {formatCurrency(data.maintenanceExpectedUSD, "USD")}
+              </p>
+              <p className="text-xs text-muted-foreground">esperado en mantenimiento</p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin mantenimientos</p>
+          )}
+        </div>
+
+        {/* Dólar blue */}
+        <div className="bg-card border border-border rounded-lg p-3 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <DollarSign className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-xs text-muted-foreground">Dólar blue</span>
+          </div>
+          {data.dolarBlue ? (
+            <div className="flex gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Compra</p>
+                <p className="text-base font-bold text-foreground">
+                  {formatCurrency(data.dolarBlue.compra, "ARS")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Venta</p>
+                <p className="text-base font-bold text-foreground">
+                  {formatCurrency(data.dolarBlue.venta, "ARS")}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No disponible</p>
+          )}
+        </div>
+      </div>
 
       {/* Monthly trends chart */}
       <div className="space-y-3">
@@ -420,6 +420,42 @@ export default async function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function CompactWidget({
+  icon: Icon,
+  label,
+  primary,
+  subtext,
+  href,
+  positive,
+}: {
+  icon: React.ElementType;
+  label: string;
+  primary: string;
+  subtext?: string;
+  href: string;
+  positive?: boolean;
+}) {
+  const primaryColor =
+    positive === undefined
+      ? "text-foreground"
+      : positive
+        ? "text-green-400"
+        : "text-destructive";
+  return (
+    <Link
+      href={href}
+      className="bg-card border border-border rounded-lg p-3 hover:border-primary/40 transition-colors block"
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+        <span className="text-xs text-muted-foreground truncate">{label}</span>
+      </div>
+      <p className={`text-lg font-bold ${primaryColor}`}>{primary}</p>
+      {subtext && <p className="text-xs text-muted-foreground mt-0.5">{subtext}</p>}
+    </Link>
   );
 }
 
