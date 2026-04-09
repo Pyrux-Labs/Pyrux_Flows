@@ -42,6 +42,7 @@ import {
 } from "@/hooks/use-projects";
 import { useClients } from "@/hooks/use-clients";
 import { PROJECT_STATUS_LABELS } from "@/lib/constants/labels";
+import { DatePickerField } from "@/components/shared/date-picker-field";
 import type { ProjectWithClient } from "@/lib/types/database.types";
 
 const schema = z.object({
@@ -249,12 +250,20 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="start_date">Inicio</Label>
-                <Input id="start_date" type="date" {...register("start_date")} />
+                <Label>Inicio</Label>
+                <DatePickerField
+                  value={watch("start_date")}
+                  onChange={(v) => setValue("start_date", v)}
+                  placeholder="Seleccionar"
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end_date">Fin</Label>
-                <Input id="end_date" type="date" {...register("end_date")} />
+                <Label>Fin</Label>
+                <DatePickerField
+                  value={watch("end_date")}
+                  onChange={(v) => setValue("end_date", v)}
+                  placeholder="Seleccionar"
+                />
               </div>
             </div>
 
@@ -326,11 +335,11 @@ export function ProjectSheet({ open, onOpenChange, project }: ProjectSheetProps)
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="maintenance_since">Desde</Label>
-                  <Input
-                    id="maintenance_since"
-                    type="date"
-                    {...register("maintenance_since")}
+                  <Label>Desde</Label>
+                  <DatePickerField
+                    value={watch("maintenance_since")}
+                    onChange={(v) => setValue("maintenance_since", v)}
+                    placeholder="Seleccionar"
                   />
                 </div>
               </div>

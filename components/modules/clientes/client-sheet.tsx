@@ -40,6 +40,7 @@ import { useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/use-c
 import { useSectors } from "@/hooks/use-sectors";
 import { useContacts, useCreateContact, useDeleteContact } from "@/hooks/use-contacts";
 import { CONTACT_TYPE_VALUES, CONTACT_TYPE_LABELS } from "@/lib/constants/labels";
+import { DatePickerField } from "@/components/shared/date-picker-field";
 import type { Client, ContactType } from "@/lib/types/database.types";
 
 const schema = z.object({
@@ -221,8 +222,12 @@ export function ClientSheet({ open, onOpenChange, client }: ClientSheetProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="started_at">Cliente desde</Label>
-                <Input id="started_at" type="date" {...register("started_at")} />
+                <Label>Cliente desde</Label>
+                <DatePickerField
+                  value={watch("started_at")}
+                  onChange={(v) => setValue("started_at", v)}
+                  placeholder="Seleccionar fecha"
+                />
               </div>
 
               <div className="space-y-2">
