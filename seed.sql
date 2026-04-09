@@ -1,11 +1,14 @@
 -- ============================================================
---  SEED v3: Pyrux Flows — datos reales al 2026-04-09
+--  SEED v4: Pyrux Flows — datos reales al 2026-04-09
 --  Ejecutar después de schema.sql
+--  Sin IDs hardcodeados — Postgres los genera automáticamente.
+--  Las referencias cruzadas usan subqueries por nombre.
 -- ============================================================
 
 
 -- ------------------------------------------------------------
 -- 1. SECTORS
+-- (id es text/clave natural, no uuid — se mantiene igual)
 -- ------------------------------------------------------------
 
 INSERT INTO sectors (id, label) VALUES
@@ -34,40 +37,34 @@ INSERT INTO sectors (id, label) VALUES
 -- 2. SERVICES (tarifario de Pyrux)
 -- ------------------------------------------------------------
 
-INSERT INTO services (id, name, description, base_price, currency, unit, category, active)
+INSERT INTO services (name, description, base_price, currency, unit, category, active)
 VALUES
   (
-    'a0000001-0000-0000-0000-000000000001',
     'Growth',
     'Sitio web profesional sin CMS. Entrega en 2 semanas. Soporte 48hs.',
     210.00, 'USD', 'proyecto', 'web', true
   ),
   (
-    'a0000001-0000-0000-0000-000000000002',
     'Pro',
     'Sitio web con CMS. Hasta 2hs/mes de soporte. Entrega en 3-4 semanas.',
     350.00, 'USD', 'proyecto', 'web', true
   ),
   (
-    'a0000001-0000-0000-0000-000000000003',
     'Business',
     'Sitio web con CMS avanzado, soporte prioritario 24hs y mejoras continuas. Entrega en 4+ semanas.',
     560.00, 'USD', 'proyecto', 'web', true
   ),
   (
-    'a0000001-0000-0000-0000-000000000004',
     'E-Commerce Básico',
     'Tienda online con CMS. Entrega en 4 semanas. Soporte 48hs.',
     560.00, 'USD', 'proyecto', 'web', true
   ),
   (
-    'a0000001-0000-0000-0000-000000000005',
     'E-Commerce Pro',
     'Plataforma e-commerce avanzada con CMS. Entrega en 6-8 semanas. Soporte 24hs.',
     1400.00, 'USD', 'proyecto', 'web', true
   ),
   (
-    'a0000001-0000-0000-0000-000000000006',
     'Personalizado',
     'Sistemas a medida, IA, plataformas. Precio y entrega a definir según requerimientos.',
     NULL, 'USD', 'proyecto', 'web', true
@@ -78,10 +75,9 @@ VALUES
 -- 3. CLIENTS
 -- ------------------------------------------------------------
 
-INSERT INTO clients (id, prospect_id, name, phone, sector, started_at, notes)
+INSERT INTO clients (prospect_id, name, phone, sector, started_at, notes)
 VALUES
   (
-    'b0000002-0000-0000-0000-000000000001',
     NULL,
     'Pyrux',
     '+54 9 3416 94-1225',
@@ -90,7 +86,6 @@ VALUES
     'Cliente interno — proyectos propios de la agencia.'
   ),
   (
-    'b0000002-0000-0000-0000-000000000002',
     NULL,
     'MedMind',
     '+54 9 341 353-6452',
@@ -105,8 +100,8 @@ VALUES
 -- ------------------------------------------------------------
 
 INSERT INTO contacts (client_id, type, value) VALUES
-  ('b0000002-0000-0000-0000-000000000001', 'email', 'pyrux@pyrux.com.ar'),
-  ('b0000002-0000-0000-0000-000000000002', 'email', 'info@medmindls.com');
+  ((SELECT id FROM clients WHERE name = 'Pyrux'),   'email', 'pyrux@pyrux.com.ar'),
+  ((SELECT id FROM clients WHERE name = 'MedMind'), 'email', 'info@medmindls.com');
 
 
 -- ------------------------------------------------------------
@@ -114,14 +109,13 @@ INSERT INTO contacts (client_id, type, value) VALUES
 -- ------------------------------------------------------------
 
 INSERT INTO projects (
-  id, client_id, service_id,
+  client_id, service_id,
   name, status, start_date, price, currency, notes,
   maintenance_amount, maintenance_currency, maintenance_since
 )
 VALUES
   (
-    'c0000003-0000-0000-0000-000000000001',
-    'b0000002-0000-0000-0000-000000000001',
+    (SELECT id FROM clients WHERE name = 'Pyrux'),
     NULL,
     'Portfolio Pyrux',
     'desarrollo',
@@ -131,8 +125,7 @@ VALUES
     NULL, 'USD', NULL
   ),
   (
-    'c0000003-0000-0000-0000-000000000002',
-    'b0000002-0000-0000-0000-000000000001',
+    (SELECT id FROM clients WHERE name = 'Pyrux'),
     NULL,
     'Goal Planner',
     'desarrollo',
@@ -142,9 +135,8 @@ VALUES
     NULL, 'USD', NULL
   ),
   (
-    'c0000003-0000-0000-0000-000000000003',
-    'b0000002-0000-0000-0000-000000000002',
-    'a0000001-0000-0000-0000-000000000006',
+    (SELECT id FROM clients WHERE name = 'MedMind'),
+    (SELECT id FROM services WHERE name = 'Personalizado'),
     'MedMind',
     'mantenimiento',
     '2026-03-05',
