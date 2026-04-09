@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pencil, FolderKanban } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { PROJECT_STATUS_LABELS } from "@/lib/constants/labels";
+import { PROJECT_STATUS_LABELS, PROJECT_STATUS_CONFIG } from "@/lib/constants/labels";
 import type { ProjectWithClient, ProjectStatus } from "@/lib/types/database.types";
 
 interface ProjectKanbanProps {
@@ -105,8 +105,10 @@ export function ProjectKanban({ projects, isLoading, onEdit }: ProjectKanbanProp
         const colProjects = grouped[col.status] ?? [];
         return (
           <div key={col.status} className="space-y-2">
-            <div className="flex items-center gap-2 px-1">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <span
+                className={`text-xs font-medium uppercase tracking-wide px-2 py-0.5 rounded-full ${PROJECT_STATUS_CONFIG[col.status]?.className ?? "text-muted-foreground"}`}
+              >
                 {col.label}
               </span>
               <Badge variant="secondary" className="text-xs h-5 px-1.5">

@@ -25,10 +25,10 @@ interface MovementsSummaryProps {
   isLoading: boolean;
 }
 
-const CREDIT_COLOR = "hsl(20 100% 62%)";
-const DEBIT_COLOR = "hsl(0 72% 60%)";
-const CREDIT_COLOR_USD = "hsl(30 45% 64%)";
-const DEBIT_COLOR_USD = "hsl(0 60% 70%)";
+const CREDIT_COLOR = "hsl(20 100% 62%)";      // naranja primario — ARS ingresos
+const DEBIT_COLOR = "hsl(0 72% 60%)";         // rojo — ARS gastos
+const CREDIT_COLOR_USD = "hsl(160 50% 45%)";  // verde — USD ingresos
+const DEBIT_COLOR_USD = "hsl(280 50% 60%)";   // violeta — USD gastos
 
 const EXTENDED_LABELS: Record<MovementType, Record<string, string>> = {
   credit: { ...MOVEMENT_CREDIT_CATEGORY_LABELS, sin_categoria: "Sin categoría" },
@@ -92,7 +92,7 @@ function CategoryChart({
       >
         <XAxis
           type="number"
-          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          tick={{ fontSize: 11, fill: "hsl(30 8% 55%)" }}
           tickFormatter={tickFormatter}
           axisLine={false}
           tickLine={false}
@@ -101,7 +101,7 @@ function CategoryChart({
           type="category"
           dataKey="category"
           width={110}
-          tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }}
+          tick={{ fontSize: 12, fill: "hsl(30 10% 93%)" }}
           axisLine={false}
           tickLine={false}
         />
