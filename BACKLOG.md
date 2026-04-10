@@ -16,6 +16,19 @@ Visible desde cualquier pantalla sin entrar a Finanzas.
 
 ## A futuro
 
+### Registro de horas por proyecto
+
+Registrar tiempo trabajado por proyecto para saber si un proyecto fue rentable y si el precio de mantenimiento es el correcto.
+
+- **Stack posible:** tabla `time_entries` (proyecto, usuario, fecha, horas, descripción) + timer simple en la app
+
+### Generador de propuestas/presupuestos (opcional)
+
+Armar una propuesta para un prospecto desde la app aprovechando los datos de `services` y `prospects`, y exportarla como PDF.
+
+- **Variante A:** generación estática con `@react-pdf/renderer`
+- **Variante B (preferida):** usar Claude con un set de skills/tools para generar la propuesta de forma inteligente — más flexible, puede adaptar el texto al contexto del prospecto
+
 ### Kanban de tareas internas
 
 Tablero compartido entre Juanma y Gino para gestionar tareas del día a día de la agencia.
