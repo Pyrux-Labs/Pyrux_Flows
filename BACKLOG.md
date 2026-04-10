@@ -1,10 +1,5 @@
 ## Próximos
 
-### Dashboard — widgets faltantes
-
-- **Widget gastos del mes**: equivalente al widget de ingresos pero para débitos
-- **Últimos gastos**: sección "Últimos gastos" en el dashboard (hoy solo hay "Últimos ingresos")
-
 ### Dashboard — Control de mantenimientos (Fase 2)
 
 Detalle individual por cliente: linkear pagador MP → proyecto via `mp_rules`.
