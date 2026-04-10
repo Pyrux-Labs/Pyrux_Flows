@@ -7,15 +7,16 @@ const DEFAULT_PAGE_SIZE = 20;
 /**
  * Client-side "load more" pagination.
  * Slices the full items array to show only visibleCount items.
- * Resets automatically when the items array reference changes (e.g. month filter).
+ * Pass a `resetKey` to reset pagination when a filter/month changes explicitly.
+ * Without resetKey, pagination survives refetches (avoids scroll-to-top on mutations).
  */
-export function usePagination<T>(items: T[], pageSize = DEFAULT_PAGE_SIZE) {
+export function usePagination<T>(items: T[], pageSize = DEFAULT_PAGE_SIZE, resetKey?: unknown) {
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
-  // Reset when the data source changes (month navigation, refetch, etc.)
+  // Only reset when an explicit key changes (e.g. filter or month), not on every refetch.
   useEffect(() => {
     setVisibleCount(pageSize);
-  }, [items, pageSize]);
+  }, [resetKey, pageSize]);
 
   const visibleItems = items.slice(0, visibleCount);
   const hasMore = items.length > visibleCount;

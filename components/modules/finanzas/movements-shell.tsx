@@ -37,7 +37,7 @@ export function MovementsShell() {
   );
   const { data: projects = [] } = useProjects();
   const sync = useSyncMovements();
-  const { visibleItems, hasMore, remaining, loadMore } = usePagination(movements);
+  const { visibleItems, hasMore, remaining, loadMore } = usePagination(movements, 20, `${month.getTime()}-${filter}`);
 
   const totalARS = movements
     .filter((e) => e.currency === "ARS")
