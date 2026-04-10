@@ -2,7 +2,7 @@
 
 Herramienta interna de Pyrux para gestionar clientes, proyectos y finanzas. Reemplaza las hojas de cálculo.
 
-Stack: Next.js · Supabase · Tailwind CSS · shadcn/ui
+Stack: Next.js · Supabase · Tailwind CSS · shadcn/ui · React Query
 
 ---
 
@@ -10,12 +10,11 @@ Stack: Next.js · Supabase · Tailwind CSS · shadcn/ui
 
 | Módulo | Descripción |
 |---|---|
-| **Prospects** | Pipeline de ventas. Al cerrar un prospect se crea el cliente automáticamente. |
-| **Clientes** | Clientes activos e históricos con su estado y proyectos asociados. |
-| **Proyectos** | Proyectos por cliente, hitos de pago, y contratos de mantenimiento mensual. |
-| **Finanzas** | Ingresos reales sincronizados desde Mercado Pago. |
-| **Gastos** | Egresos reales sincronizados desde Mercado Pago. |
-| **Dashboard** | Saldo actual, forecast del mes siguiente, y mantenimientos pendientes de cobro. |
+| **Prospectos** | Pipeline de ventas con kanban y tabla. Al cerrar un prospecto se crea el cliente automáticamente y se migran los contactos. |
+| **Clientes** | Clientes activos e históricos con contactos, sector y notas. |
+| **Proyectos** | Proyectos por cliente con hitos de pago y contratos de mantenimiento mensual (ARS o USD). |
+| **Finanzas** | Movimientos sincronizados desde Mercado Pago (ingresos y egresos en una sola vista). Permite enriquecer manualmente y guardar reglas de auto-asignación. |
+| **Dashboard** | Saldo actual MP, resumen del mes (ARS + USD + tipo blue), forecast del mes siguiente, y control de mantenimientos. |
 
 ---
 
@@ -24,19 +23,21 @@ Stack: Next.js · Supabase · Tailwind CSS · shadcn/ui
 ```
 Cuenta MP
     │
-    │  cron horario (Vercel Cron)
+    │  cron horario (Vercel Cron) + webhook (cobros)
     ▼
-GET /v1/payments/search
+payments/search  ──► créditos e-commerce y QR
+bank_report      ──► PAYOUTS (transferencias P2P) + saldo real
+settlement_report──► liquidaciones (fire-and-forget)
     │
     │  por cada movimiento nuevo (mp_id único, no duplica)
     ▼
 movements (tabla)
     │
-    ├─ ¿existe regla en mp_rules para este counterpart_id?
+    ├─ ¿existe regla en mp_rules para este counterpart_id + type?
     │       │
     │      SÍ ──► asigna project_id + category + is_recurring automáticamente
     │       │
-    │      NO ──► queda sin asignar (aparece como "sin clasificar" en la UI)
+    │      NO ──► queda sin asignar (aparece como "sin clasificar" en Finanzas)
     │
     └─ usuario puede enriquecer manualmente:
            - linkear a un proyecto
@@ -47,13 +48,9 @@ movements (tabla)
 
 ### Saldo actual
 
-```
-saldo actual = opening_balance_ars (settings)
-             + SUM(amount) WHERE type = 'credit' AND date >= opening_balance_date
-             - SUM(amount) WHERE type = 'debit'  AND date >= opening_balance_date
-```
+El saldo real se toma del campo `BALANCE_AMOUNT` del `bank_report` de MP y se guarda en `settings.opening_balance_ars` en cada sync. No se calcula — se lee directamente.
 
-El `opening_balance_ars` se configura una sola vez antes de activar la sincronización.
+El equivalente en USD usa el tipo de cambio blue (venta) de dolarapi.com, cacheado 24h.
 
 ### Forecast del mes siguiente
 
@@ -65,20 +62,7 @@ neto estimado      = ingresos esperados - egresos esperados
 
 ### Control de mantenimientos
 
-Para saber si un cliente pagó el mantenimiento del mes:
-
-```sql
--- ¿MedMind pagó en abril 2026?
-SELECT EXISTS (
-  SELECT 1 FROM movements
-  WHERE project_id = '<id-proyecto-medmind>'
-    AND type = 'credit'
-    AND date >= '2026-04-01'
-    AND date <  '2026-05-01'
-);
-```
-
-El dashboard muestra una tabla con todos los proyectos en mantenimiento y su estado de cobro para el mes en curso.
+El dashboard compara lo esperado (suma de `maintenance_amount` por moneda de proyectos en mantenimiento) vs lo recibido (movimientos con `category = 'mantenimiento'` del mes en curso), por moneda.
 
 ---
 
@@ -88,24 +72,39 @@ El dashboard muestra una tabla con todos los proyectos en mantenimiento y su est
 |---|---|
 | `prospects` | Leads en proceso de venta |
 | `clients` | Clientes activos e históricos |
+| `contacts` | Contactos de prospects y clientes (email, teléfono, Instagram, etc.) |
 | `services` | Catálogo de servicios (precios de referencia) |
+| `sectors` | Tabla de referencia de rubros (id text, label text) |
 | `projects` | Proyectos y contratos de mantenimiento |
-| `project_payments` | Hitos de pago de proyectos (anticipo, entrega) |
-| `movements` | Movimientos de MP sincronizados (ingresos y egresos) |
+| `project_payments` | Hitos de pago de proyectos (anticipo, entrega, etc.) |
+| `movements` | Movimientos de MP sincronizados (créditos y débitos) |
 | `mp_rules` | Reglas de auto-asignación por contraparte |
-| `settings` | Config general (saldo de apertura, etc.) |
+| `settings` | Config general (saldo de apertura, tokens OAuth de MP) |
 
 ---
 
 ## Variables de entorno
 
+Ver `.env.example` para la lista completa. Las principales:
+
 ```env
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-MP_ACCESS_TOKEN=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Mercado Pago
+MP_ACCESS_TOKEN=          # credencial de producción
+MP_CLIENT_ID=             # requerido para OAuth (bank_report, scopes ampliados)
+MP_CLIENT_SECRET=         # requerido para OAuth
+
+# App
+NEXT_PUBLIC_APP_URL=      # URL pública (redirect OAuth de MP)
+CRON_SECRET=              # string aleatorio, mismo valor en Vercel
+MP_WEBHOOK_SECRET=        # se obtiene al registrar el webhook en MP
 ```
 
-`MP_ACCESS_TOKEN` se obtiene desde [developers.mercadopago.com](https://developers.mercadopago.com) → Tu aplicación → Credenciales de producción.
+`MP_ACCESS_TOKEN`, `MP_CLIENT_ID` y `MP_CLIENT_SECRET` se obtienen desde [developers.mercadopago.com](https://developers.mercadopago.com) → Tu aplicación → Credenciales de producción.
 
 ---
 
@@ -118,4 +117,4 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Correr `schema.sql` en el SQL Editor de Supabase antes del primer uso.
+Correr `schema.sql` → `seed.sql` en el SQL Editor de Supabase antes del primer uso.

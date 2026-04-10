@@ -1,60 +1,38 @@
-## Ideas pendientes
+## Próximos
+
+### Dashboard — widgets faltantes
+
+- **Widget gastos del mes**: equivalente al widget de ingresos pero para débitos
+- **Últimos gastos**: sección "Últimos gastos" en el dashboard (hoy solo hay "Últimos ingresos")
+
+### Dashboard — Control de mantenimientos (Fase 2)
+
+Detalle individual por cliente: linkear pagador MP → proyecto via `mp_rules`.
+Ver quién pagó / quién no pagó en el mes.
+
+- Depende de tener más clientes con mantenimientos activos para que valga la pena.
 
 ### Badge de alertas en el sidebar (opcional)
 
-Un numerito en el ítem "Finanzas" del sidebar mostrando cuántos cobros están pendientes (factura enviada, sin cobrar). Visible desde cualquier pantalla sin entrar al dashboard.
-
-- **Estado:** opcional, implementar si el widget del dashboard no alcanza en el día a día
-
----
-
-### Componentes shadcn faltantes
-
-Instalar cuando se necesiten, no antes:
-
-- **`Tooltip`** — para mostrar texto completo (email, teléfono, notas largas) al hacer hover en tablas
-- **`Scroll Area`** — para sheets con mucho contenido en pantallas chicas
+Un numerito en el ítem "Finanzas" del sidebar mostrando cuántos cobros están sin clasificar.
+Visible desde cualquier pantalla sin entrar a Finanzas.
 
 ---
+
+## A futuro
 
 ### Calendario compartido con notificaciones por email
 
 Calendario interno para Juanma y Gino con eventos, reuniones y deadlines. Envía mail cuando hay un evento próximo.
 
-- **Estado:** idea confirmada, construcción pesada pero tienen código reutilizable de otra app
-- **Acción previa:** traer el código existente y evaluar qué hay que adaptar
-- **Stack posible:** shadcn `Calendar` + tabla `events` en Supabase + Resend o Nodemailer para los mails + pg_cron para disparar notificaciones
-- **Nota:** ya tienen pg_cron activo por los gastos recurrentes, el mismo mecanismo sirve para disparar recordatorios
-
----
+- **Stack posible:** shadcn `Calendar` + tabla `events` en Supabase + Resend para mails + pg_cron para disparar recordatorios
+- **Nota:** ya tienen pg_cron activo, el mismo mecanismo sirve para disparar recordatorios
 
 ### Gastos recurrentes — activar pg_cron
 
-- **Estado:** UI + schema implementados — pendiente activar pg_cron en Supabase (Database → Extensions → pg_cron) y correr el `SELECT cron.schedule(...)` comentado al final del schema.sql
+UI + schema ya implementados. Falta activar pg_cron en Supabase (Database → Extensions → pg_cron) y ejecutar el `SELECT cron.schedule(...)` comentado al final de `schema.sql`.
 
----
+### Componentes shadcn por instalar cuando se necesiten
 
-### Integración con Mercado Pago
-
-Sincronizar automáticamente movimientos de MP con Ingresos y Gastos de la app.
-
-- **Estado:** bloqueado — necesitan crear una app en developers.mercadopago.com para obtener el Access Token
-- **Cuenta:** personal usada como empresa (no cuenta Empresas)
-- **Approach decidido:** Vercel Cron Job cada hora que consulta la API de MP y trae movimientos nuevos
-  - Créditos (plata que entra) → se crean como Ingresos
-  - Débitos (plata que sale) → se crean como Gastos
-  - Cada registro importado queda marcado con `source: "mercadopago"`
-- **Prerrequisito (manual):**
-  1. Ir a developers.mercadopago.com
-  2. Crear una app nueva
-  3. Copiar el Access Token de producción
-  4. Agregarlo como variable de entorno en Vercel (`MP_ACCESS_TOKEN`)
-
----
-
-### Gestión de cobros recurrentes a clientes
-
-Clientes que pagan un precio fijo mensual vía Mercado Pago.
-
-- **Estado:** pendiente — cada ingreso de mantenimiento se carga a mano hoy
-- **Depende de:** integración con Mercado Pago
+- **`Tooltip`** — para mostrar texto completo al hacer hover en celdas de tablas
+- **`Scroll Area`** — para sheets con mucho contenido en pantallas chicas
