@@ -21,6 +21,17 @@ Visible desde cualquier pantalla sin entrar a Finanzas.
 
 ## A futuro
 
+### Kanban de tareas internas
+
+Tablero compartido entre Juanma y Gino para gestionar tareas del día a día de la agencia.
+
+- **Columnas sugeridas:** Por hacer / En progreso / Hecho
+- **Features mínimos:** crear tarea, asignar a un usuario, mover entre columnas
+- **Stack posible:** tabla `tasks` en Supabase + Realtime para sincronización instantánea entre los dos usuarios + drag & drop (dnd-kit)
+- **Nota:** Supabase Realtime ya está disponible en el proyecto, no requiere infraestructura extra
+
+
+
 ### Calendario compartido con notificaciones por email
 
 Calendario interno para Juanma y Gino con eventos, reuniones y deadlines. Envía mail cuando hay un evento próximo.
