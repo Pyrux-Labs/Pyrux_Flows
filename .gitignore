@@ -40,3 +40,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# documentation
+SPEC.md
+PLAN.md
+BACKLOG.md
+README.md
+
+# local files
+schema.sql
+seed.sql
